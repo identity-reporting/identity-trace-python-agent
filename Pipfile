@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 requests = "*"
 jsonpickle = "*"
+setuptools = "*"
+twine = "*"
 
 [dev-packages]
 

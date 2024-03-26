@@ -1,0 +1,9 @@
+Metadata-Version: 2.1
+Name: identity-trace-python-agent
+Version: 1.0.0
+Summary: Tracing agent for python.
+Home-page: https://github.com/MamoonAhmad/identity-reporting/tree/main/identity-trace-python-agent
+Author: Mamoon Ahmed
+Author-email: engineer.mamoonahmed@gmail.com
+Requires-Dist: jsonpickle
+Requires-Dist: requests
