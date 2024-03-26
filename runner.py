@@ -7,10 +7,21 @@ import inspect
 import uuid
 import requests
 import functools
+import sys
 
 
-file_path = os.path.dirname(os.path.realpath(__file__)) + '/config.json'
 
+
+IDENTITY_CONFIG_FOLDER_NAME = "__identity_config__"
+
+# Get the script's path
+script_path = sys.argv[0]
+
+# Get the directory path where the script was executed from
+script_directory = os.path.dirname(script_path)
+
+
+file_path = "{script_directory}/{IDENTITY_CONFIG_FOLDER_NAME}/config.json"
 
 def run_test():
 
