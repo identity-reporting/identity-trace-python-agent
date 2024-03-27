@@ -1,4 +1,9 @@
 setup.py
+identity_trace/__init__.py
+identity_trace/decorator.py
+identity_trace/registry.py
+identity_trace/runner.py
+identity_trace/tracer.py
 identity_trace_python_agent.egg-info/PKG-INFO
 identity_trace_python_agent.egg-info/SOURCES.txt
 identity_trace_python_agent.egg-info/dependency_links.txt

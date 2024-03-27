@@ -1,7 +1,7 @@
 
 
-from registry import register_frame, is_frame_registered, remove_frame, register_function
-from tracer import trace_function
+from .registry import register_frame, is_frame_registered, remove_frame, register_function
+from .tracer import trace_function
 import inspect
 import json
 import datetime
@@ -43,7 +43,7 @@ class FunctionTrace:
             description=self.description,
             functionID=self.function_id,
             input=json.loads(self.input),
-            output=json.loads(self.output),
+            output=json.loads(self.output) if self.output else self.output,
             parentID=self.parent_id,
             executedSuccessfully=self.executed_successfully,
             error=self.error,
@@ -68,19 +68,21 @@ def watch(name=None, description='', config=None):
         function_name = name or func.__name__
         function_id = id(func)
 
-        register_function(function_name=function_name, func=func)
+        
 
         def inner(*args, **kwargs):
 
             # register current function run
             frame = inspect.currentframe()
 
-            parent_execution_context = find_parent(frame)
+            parent_execution_context, parent_frame = find_parent(frame)
             execution_context = get_new_execution_context(function_id)
 
             parent_id = None
 
             if parent_execution_context:
+                if parent_execution_context.get("_action", None) == "copy_context":
+                    remove_frame(parent_frame)
                 if parent_execution_context.get("function_id", None):
                     parent_id = parent_execution_context["function_id"]
                 
@@ -128,7 +130,10 @@ def watch(name=None, description='', config=None):
                 # this means execution is complete
                 trace_function(function_trace_instance)
 
+        register_function(function_name=function_name, func=inner)
         return inner
+
+        
 
     return wrapper
 
@@ -138,10 +143,10 @@ def find_parent(frame):
     while frame:
         parent_execution_context = is_frame_registered(frame)
         if parent_execution_context:
-            return parent_execution_context
+            return [parent_execution_context, frame]
         frame = frame.f_back
 
-    return None
+    return [None, None]
 
 
 def copy_parent_context(parent_execution_context: dict):
