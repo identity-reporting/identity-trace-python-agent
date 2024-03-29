@@ -48,7 +48,7 @@ def send_execution_trace(traces):
     res = requests.post('http://localhost:8002/save-function-execution-trace',
                         json=trace)
 
-    print(res)
+    print(res, "this is another")
 
 
 def get_environment_details():
