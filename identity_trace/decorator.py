@@ -29,6 +29,7 @@ class FunctionTrace:
 
     start_time = None
     end_time = None
+    execution_id = None
 
     children = []
 
@@ -54,6 +55,7 @@ class FunctionTrace:
             error=self.error,
             startTime=self.start_time,
             endTime=self.end_time,
+            executionID = self.execution_id
         )
 
 
@@ -81,8 +83,11 @@ def watch(name=None, description='', config=None):
 
             # register current function run
             frame = inspect.currentframe()
+            import uuid
+
 
             parent_execution_context, parent_frame = find_parent(frame)
+            function_id = str(uuid.uuid4())
             execution_context = get_new_execution_context(function_id)
 
             parent_id = None
@@ -106,6 +111,8 @@ def watch(name=None, description='', config=None):
             function_trace_instance.function_id = function_id
             function_trace_instance.parent_id = parent_id
             function_trace_instance.module_name = module_name
+            
+            function_trace_instance.execution_id = str(uuid.uuid4())
 
             function_trace_instance.description = description
             function_trace_instance.config.update(config or dict())

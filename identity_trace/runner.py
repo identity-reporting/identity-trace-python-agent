@@ -44,8 +44,8 @@ def run_test():
         return run_command_file(args.runFile)
 
     # python test.py --testSuiteId="1711758297852" --testRunId="run1"
-    test_suite_id = args.testSuiteId
-    test_run_id = args.testRunId
+    test_suite_id = args.testSuiteId or "1712285328831"
+    test_run_id = args.testRunId or "run1"
 
     if not test_run_id:
         raise Exception("Test run id not specified.")
