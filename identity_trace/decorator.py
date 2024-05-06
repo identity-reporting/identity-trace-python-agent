@@ -1,6 +1,6 @@
 
 
-from .registry import register_frame, is_frame_registered, remove_frame, register_function
+from .registry import register_frame, is_frame_registered, remove_frame, register_function, get_function_processor_callbacks
 from .tracer import trace_function
 import inspect
 import json
@@ -29,6 +29,11 @@ class FunctionTrace:
 
     start_time = None
     end_time = None
+    execution_id = None
+
+    children = []
+
+    execution_context = None
 
     def serialize(self):
         return dict(
@@ -36,6 +41,7 @@ class FunctionTrace:
                 'trace_input': self.config['trace_input'],
                 'trace_output': self.config['trace_output'],
             },
+            executionContext = self.execution_context,
             packageName=self.package_name,
             fileName=self.file_name,
             moduleName=self.module_name,
@@ -49,6 +55,7 @@ class FunctionTrace:
             error=self.error,
             startTime=self.start_time,
             endTime=self.end_time,
+            executionID = self.execution_id
         )
 
 
@@ -68,14 +75,19 @@ def watch(name=None, description='', config=None):
         function_name = name or func.__name__
         function_id = id(func)
 
+
+        
         
 
         def inner(*args, **kwargs):
 
             # register current function run
             frame = inspect.currentframe()
+            import uuid
+
 
             parent_execution_context, parent_frame = find_parent(frame)
+            function_id = str(uuid.uuid4())
             execution_context = get_new_execution_context(function_id)
 
             parent_id = None
@@ -92,12 +104,15 @@ def watch(name=None, description='', config=None):
             register_frame(frame, execution_context)
 
             function_trace_instance = FunctionTrace()
+            function_trace_instance.execution_context = dict()
             function_trace_instance.name = function_name
             function_trace_instance.file_name = file_name
             function_trace_instance.package_name = package_name
             function_trace_instance.function_id = function_id
             function_trace_instance.parent_id = parent_id
             function_trace_instance.module_name = module_name
+            
+            function_trace_instance.execution_id = str(uuid.uuid4())
 
             function_trace_instance.description = description
             function_trace_instance.config.update(config or dict())
@@ -110,7 +125,15 @@ def watch(name=None, description='', config=None):
 
             try:
                 function_trace_instance.start_time = datetime.datetime.now().timestamp()
-                output = func(*args, **kwargs)
+                output = None
+                
+                funtion_to_call = func
+                callbacks = get_function_processor_callbacks()
+                if callbacks:
+                    funtion_to_call = callbacks(function_trace_instance, funtion_to_call)
+                
+                output = funtion_to_call(*args, **kwargs)
+                
                 function_trace_instance.end_time = datetime.datetime.now().timestamp()
 
                 if function_trace_instance.config.get('trace_output', None):

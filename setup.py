@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='identity-trace-python-agent',
-    version='1.0.5',
+    version='1.0.6',
     packages=find_packages(),
     description='Tracing agent for python.',
     author='Mamoon Ahmed',
