@@ -2,6 +2,7 @@
 
 _function_registry = {}
 __function_registry = {}
+__function_processor_map = dict()
 
 
 def register_frame(frame, execution_context):
@@ -27,3 +28,19 @@ def register_function(function_name, func):
 
 def get_function_by_name(function_name):
     return __function_registry.get(function_name, None)
+
+
+def register_function_processor(callback):
+
+    __function_processor_map['callback'] = callback
+
+
+def remove_function_processor_callback():
+
+    try:
+        del __function_processor_map['callback']
+    except:
+        ...
+
+def get_function_processor_callbacks():
+    return __function_processor_map.get('callback', None)
