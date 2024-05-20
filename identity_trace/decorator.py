@@ -48,6 +48,7 @@ class FunctionTrace:
             name=self.name,
             description=self.description,
             functionID=self.function_id,
+            _id = self.function_id,
             input=json.loads(self.input),
             output=json.loads(self.output) if self.output else self.output,
             parentID=self.parent_id,
