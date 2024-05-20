@@ -45,7 +45,7 @@ def send_execution_trace(traces):
         if res:
             return
     
-    res = requests.post('http://localhost:8002/save-function-execution-trace',
+    res = requests.post('http://localhost:8002/executed_function/save-function-execution-trace',
                         json=trace)
 
     print(res, "this is another")

@@ -29,7 +29,7 @@ script_path = sys.argv[0]
 script_directory = os.path.dirname(script_path)
 
 
-file_path = "{}/testCases/".format(IDENTITY_CONFIG_FOLDER_NAME)
+file_path = "{}/TestCase/".format(IDENTITY_CONFIG_FOLDER_NAME)
 
 if script_directory:
     file_path = script_directory + "/" + file_path
@@ -140,7 +140,7 @@ def send_trace_to_server(test_run_id, test_suite_id, test_case_id, trace):
     trace["testSuiteId"] = test_suite_id
     trace["testRunId"] = test_run_id
 
-    res = requests.post('http://localhost:8002/save-test-run',
+    res = requests.post('http://localhost:8002/test_run/save-test-run',
                         json=trace)
     
     print(res, "this is result")
@@ -162,7 +162,7 @@ def get_all_files_in_directory(directory_path):
 def run_command_file(file_id):
 
 
-    file_path1 = f"{IDENTITY_CONFIG_FOLDER_NAME}/{file_id}.json"
+    file_path1 = f"{IDENTITY_CONFIG_FOLDER_NAME}/ExecutedFunction/{file_id}.json"
 
     if script_directory:
         file_path1 = f"{script_directory}/{file_path1}"
