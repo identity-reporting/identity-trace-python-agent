@@ -37,13 +37,11 @@ class ClientExecutedFunctionTrace:
     def __init__(self) -> None:
         self.execution_context = dict()
         self.children = []
+        self.id = str(uuid.uuid4())
 
     def serialize(self):
         return dict(
-            config={
-                'trace_input': True,
-                'trace_output': True,
-            },
+            config=self.config,
             executionContext = self.execution_context,
             packageName=self.package_name,
             fileName=self.file_name,
@@ -100,12 +98,12 @@ def general_wrapper(
         current_frame = inspect.currentframe()
 
         client_executed_function_trace = ClientExecutedFunctionTrace()
-        client_executed_function_trace.id = str(uuid.uuid4())
         client_executed_function_trace.package_name = package_name
         client_executed_function_trace.module_name = module_name
         client_executed_function_trace.file_name = file_name
         client_executed_function_trace.name = name
         client_executed_function_trace.description = description
+        client_executed_function_trace.config = function_specific_config
 
         _call_callback(
             get_tracer_callback("client_executed_function_preprocess"),
@@ -137,6 +135,7 @@ def general_wrapper(
         except Exception as e:
             client_executed_function_trace.end_time = int(time.time() * 1000)
             client_thrown_error = e
+            client_executed_function_trace.error = str(e)
             client_executed_function_trace.executed_successfully = False
         
         # Post processing

@@ -1,17 +1,24 @@
-
-
 import inspect
 from .constants import DEFAULT_FUNCTION_SPECIFIC_CONFIG
 from .orchestration import orchestrate
+from .registry import get_client_function_decorator
+import functools
 
 
 orchestrate()
 
 
 def watch(name = None, description = None, config = None):
+    '''
+        Decorator to wrap client code functions to monitor inputs and outputs of the function depending 
+        on the configuration.
 
-    from .registry import get_client_function_decorator
-    import functools
+        @param name {string}: Optional name of the function. If this name is provided it will be registered 
+        with this name in the registry.
+        @param description {string}: Optional description of the function defining what the function is doing.
+        @param config: Optional configuration for the function. If this config is provided, then for this
+        function, agent will ignore the global config.
+    '''
 
     current_frame = inspect.currentframe()
     caller_module_frame = current_frame.f_back

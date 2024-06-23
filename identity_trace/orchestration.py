@@ -1,5 +1,5 @@
 from .registry import register_run_action, register_tracer_callback, set_client_function_decorator
-from .test_run import test_run_action
+from .test_runner import test_run_action
 from .tracer import general_preprocessing_tracer, general_postprocessing_tracer,\
     general_function_trace_callback
 
