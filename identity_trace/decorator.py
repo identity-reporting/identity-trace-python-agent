@@ -33,8 +33,9 @@ def watch(name = None, description = None, config = None):
         function_specific_config.update(config)
     
 
+    # Return the decorator while providing metadata
     return functools.partial(
-        get_client_function_decorator(),
+        get_client_function_decorator(), # get the registered decorator from the registry
         module_name,
         package_name,
         file_name,
