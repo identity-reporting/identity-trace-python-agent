@@ -1,4 +1,4 @@
-from unittest import TestCase
+from .utils import TestCase
 
 
 from identity_trace.registry import set_client_function_decorator

@@ -171,11 +171,12 @@ def run_function_by_meta(function_config):
     try:
         module = importlib.import_module(module_name)
         function_to_run = getattr(module, function_name, None)
-    except:
+    except Exception as e:
         raise Exception((
             f"Could not import module {module_name}.\n"
             f"Original Module: {function_meta['module_name']}\n"
-            f"File Name: {file_name}"
+            f"File Name: {file_name}\n"
+            f"Error: {str(e)}"
         ))
 
     if not function_to_run:

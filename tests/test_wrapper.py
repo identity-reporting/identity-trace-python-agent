@@ -1,6 +1,6 @@
 from unittest import mock
 import uuid
-from utils import TestCase
+from .utils import TestCase
 
 from identity_trace.wrappers import general_wrapper, ClientExecutedFunctionTrace
 

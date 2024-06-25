@@ -9,10 +9,11 @@ from identity_trace.runner import (
     run_function_by_meta,
     record_function_run_trace,
     run_function_by_code,
-    FUNCTION_TRACE_MAP
+    FUNCTION_TRACE_MAP,
+    record_function_run_trace
 )
 
-from utils import TestCase
+from .utils import TestCase
 
 class Empty():
     ...
@@ -142,6 +143,7 @@ class run_function_by_meta_tests(TestCase):
     @patch("importlib.import_module")
     def test_imports_module_name(self, import_module_mock):
 
+        execution_id = str(uuid.uuid4())
         mock_function_config = dict(
             function_meta = dict(
                 module_name = "some_module",
@@ -149,13 +151,14 @@ class run_function_by_meta_tests(TestCase):
                 function_name = "some_function"
             ),
             input_to_pass = [{}],
-
+            execution_id = execution_id
         )
         def mock_function(*args, **kwargs):
             ...
         return_value = Empty()
         return_value.some_function = mock_function
         import_module_mock.return_value = return_value
+        record_function_run_trace(execution_id)
 
         run_function_by_meta(mock_function_config)
 
@@ -164,6 +167,7 @@ class run_function_by_meta_tests(TestCase):
     @patch("importlib.import_module")
     def test_filename_as_main_module_for_main_module(self, import_module_mock):
 
+        execution_id = str(uuid.uuid4())
         mock_function_config = dict(
             function_meta = dict(
                 module_name = "__main__",
@@ -171,7 +175,7 @@ class run_function_by_meta_tests(TestCase):
                 function_name = "some_function"
             ),
             input_to_pass = [{}],
-
+            execution_id = execution_id
         )
 
         def mock_function(*args, **kwargs):
@@ -179,6 +183,7 @@ class run_function_by_meta_tests(TestCase):
         return_value = Empty()
         return_value.some_function = mock_function
         import_module_mock.return_value = return_value
+        record_function_run_trace(execution_id)
 
         run_function_by_meta(mock_function_config)
 
@@ -547,11 +552,5 @@ class run_function_by_code_tests(TestCase):
         
         
 
-
-    
-    
-
-
-run_function_by_meta_tests().test_removes_trace_record()
 
 #TODO: 

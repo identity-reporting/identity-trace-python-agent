@@ -1,10 +1,14 @@
 import uuid
 from unittest import mock
-from utils import TestCase
-from identity_trace.test_run import client_function_runner
+from .utils import TestCase
+from identity_trace.test_runner import client_function_runner
 from identity_trace.wrappers import ClientExecutedFunctionTrace
 
+import identity_trace.test_runner as test_runner_module
 
+
+def reset_call_count():
+    test_runner_module.__function_call_count_map__ = dict()
 
 class client_function_runner_tests(TestCase):
 
@@ -33,6 +37,8 @@ class client_function_runner_tests(TestCase):
         mock_trace = ClientExecutedFunctionTrace()
         mock_trace.module_name = "some_module"
         mock_trace.name = "some_func"
+
+        reset_call_count()
         res = client_function_runner(
             mock_config,
             mock_trace,
@@ -66,6 +72,8 @@ class client_function_runner_tests(TestCase):
         mock_trace = ClientExecutedFunctionTrace()
         mock_trace.module_name = "some_module"
         mock_trace.name = "some_func"
+        reset_call_count()
+
         with self.assertRaises(Exception) as exception:
 
             client_function_runner(
@@ -76,8 +84,7 @@ class client_function_runner_tests(TestCase):
 
         self.assert_exception_matches(
             Exception(mocked_error),
-            exception.exception,
-            "Throws mocked exception"
+            exception.exception
         )
     
 
@@ -170,6 +177,8 @@ class client_function_runner_tests(TestCase):
         mock_trace = ClientExecutedFunctionTrace()
         mock_trace.module_name = "some_module"
         mock_trace.name = "some_func"
+        reset_call_count()
+        
         res = client_function_runner(
             mock_config,
             mock_trace,
@@ -192,7 +201,3 @@ class client_function_runner_tests(TestCase):
         self.assertEqual(res, mock_output, "Should run mocked output for third call")
 
         
-
-
-
-client_function_runner_tests().test_calls_client_function_if_mock_not_present()

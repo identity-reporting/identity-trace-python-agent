@@ -3,7 +3,7 @@ import inspect
 from unittest.mock import patch
 from unittest import mock
 import uuid
-from utils import TestCase
+from .utils import TestCase
 
 
 from identity_trace.tracer import general_postprocessing_tracer, general_preprocessing_tracer
