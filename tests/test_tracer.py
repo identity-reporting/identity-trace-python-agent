@@ -115,7 +115,7 @@ class general_preprocessing_tracer_tests(TestCase):
         )
 
         register_frame_mock.assert_called_once_with(
-            frame, trace
+            str(id(frame)), trace
         )
         register_function_mock.assert_called_once_with(
             trace.id,
@@ -130,7 +130,7 @@ class general_preprocessing_tracer_tests(TestCase):
     @patch("identity_trace.tracer.is_frame_registered")
     @patch("identity_trace.tracer.register_function")
     @patch("identity_trace.tracer.register_frame")
-    def finds_parent(self, register_frame_mock, register_function_mock, is_frame_registered_mock):
+    def test_finds_parent(self, register_frame_mock, register_function_mock, is_frame_registered_mock):
         '''
             Finds the parent if there is a frame registered previously.
         '''
@@ -156,6 +156,7 @@ class general_preprocessing_tracer_tests(TestCase):
         )
 
         self.assertEqual(trace.parent_id, parent_trace.id)
+        is_frame_registered_mock.assert_called_once_with(str(id(frame.f_back)))
 
 
 

@@ -1,7 +1,7 @@
 class Namespaces:
 
     client_function_wrapper_call_frame = "client_function_wrapper_call_frame"
-    client_function_trace_by_name = "client_function_trace_by_name"
+    client_function_trace_by_id = "client_function_trace_by_id"
 
     run_file_action = "run_file_action"
     tracer_callbacks = "tracer_callbacks"
@@ -44,41 +44,6 @@ def delete_cache_value(namespace, key):
 
             del target_dict[key]
 
-
-
-
-_function_registry = {}
-__function_registry = {}
-
-
-def register_frame(frame, client_executed_function_trace_instance):
-    _function_registry[_get_frame_id(frame)] = client_executed_function_trace_instance
-
-
-def is_frame_registered(frame):
-    return _function_registry.get(_get_frame_id(frame), False)
-
-
-def remove_frame(frame):
-    if _function_registry.get(frame, None):
-        del _function_registry[frame]
-
-
-def _get_frame_id(frame):
-    return id(frame)
-
-
-def register_function(function_name, func):
-    __function_registry[function_name] = func
-
-
-def get_function_by_name(function_name):
-    return __function_registry.get(function_name, None)
-
-def remove_function(function_name):
-
-    if __function_registry.get(function_name, None):
-        del __function_registry[function_name]
 
 
 __run_actions__ = {}
