@@ -263,7 +263,7 @@ class general_postprocessing_tracer_tests(TestCase):
         )
 
         remove_frame_mock.assert_called_once_with(
-            frame
+            str(id(frame))
         )
         remove_function_mock.assert_called_once_with(trace.id)
     

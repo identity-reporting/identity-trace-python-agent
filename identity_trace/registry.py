@@ -46,19 +46,6 @@ def delete_cache_value(namespace, key):
 
 
 
-__run_actions__ = {}
-
-def register_run_action(action_name, callback):
-    __run_actions__ [action_name] = callback
-
-def get_run_action(action_name):
-
-    return __run_actions__.get(action_name, None)
-
-def remove_run_action(action_name):
-    del __run_actions__ [action_name]
-
-
 __client_function_decorator__ = {}
 
 def set_client_function_decorator(callback):
@@ -68,20 +55,6 @@ def set_client_function_decorator(callback):
 def get_client_function_decorator():
 
     return __client_function_decorator__["callback"]
-
-
-
-__tracer_callbacks__ = {}
-
-def register_tracer_callback(action_name, callback_function):
-    __tracer_callbacks__[action_name] = callback_function
-
-def remove_tracer_callback(action_name):
-    if __tracer_callbacks__.get(action_name):
-        del __tracer_callbacks__[action_name] 
-
-def get_tracer_callback(action_name):
-    return __tracer_callbacks__.get(action_name, None)
 
 
 

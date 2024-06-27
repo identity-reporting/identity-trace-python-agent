@@ -6,9 +6,11 @@ import functools
 import sys
 import argparse
 
-from .registry import register_tracer_callback
-from .registry import get_run_action
+from .registry import get_cache_value, set_cache_value, Namespaces
 from .orchestration import orchestrate
+
+get_run_action = functools.partial(get_cache_value, Namespaces.run_file_action)
+register_tracer_callback = functools.partial(set_cache_value, Namespaces.tracer_callbacks)
 
 orchestrate()
 

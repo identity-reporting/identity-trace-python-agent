@@ -3,7 +3,6 @@ from unittest.mock import patch
 from unittest import mock
 import uuid
 
-from identity_trace.registry import register_run_action
 from identity_trace.runner import (
     run_function_from_run_file,
     run_function_by_meta,
@@ -20,9 +19,10 @@ class Empty():
 
 class run_function_from_run_file_tests(TestCase):
 
+    @patch("identity_trace.runner.get_run_action")
     @patch("identity_trace.runner.on_run_file_function_complete")
     @patch("identity_trace.runner.run_function_by_code")
-    def test_calls_the_run_action_callback_if_registered(self, run_function_by_code_mock, on_run_file_function_complete_mock):
+    def test_calls_the_run_action_callback_if_registered(self, run_function_by_code_mock, on_run_file_function_complete_mock, get_run_action_mock):
 
         mock_config = dict(
             functions_to_run = [
@@ -36,8 +36,7 @@ class run_function_from_run_file_tests(TestCase):
 
         mocked_run_action = mock.Mock()
         
-
-        register_run_action("my_action", mocked_run_action)
+        get_run_action_mock.return_value = mocked_run_action
 
         run_function_from_run_file(
             run_file_id=run_file_id,

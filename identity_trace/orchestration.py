@@ -1,4 +1,4 @@
-from .registry import register_run_action, register_tracer_callback, set_client_function_decorator
+from .registry import set_client_function_decorator, set_cache_value, Namespaces
 from .test_runner import test_run_action
 from .tracer import general_preprocessing_tracer, general_postprocessing_tracer,\
     general_function_trace_callback
@@ -11,7 +11,11 @@ def register_run_actions():
     if __local_map__.get("run_actions", False):
         return
     
-    register_run_action("test_run", test_run_action)
+    set_cache_value(
+        Namespaces.run_file_action,
+        "test_run",
+        test_run_action
+    )
 
     __local_map__["run_actions"] = True
 
@@ -21,9 +25,21 @@ def register_tracer_callbacks():
     if __local_map__.get("tracer", False):
         return
     
-    register_tracer_callback("client_executed_function_preprocess", general_preprocessing_tracer)
-    register_tracer_callback("client_executed_function_postprocess", general_postprocessing_tracer)
-    register_tracer_callback("client_executed_function_finish", general_function_trace_callback)
+    set_cache_value(
+        Namespaces.tracer_callbacks,
+        "client_executed_function_preprocess",
+        general_preprocessing_tracer
+    )
+    set_cache_value(
+        Namespaces.tracer_callbacks,
+        "client_executed_function_postprocess",
+        general_postprocessing_tracer
+    )
+    set_cache_value(
+        Namespaces.tracer_callbacks,
+        "client_executed_function_finish",
+        general_function_trace_callback
+    )
 
     __local_map__["tracer"] = True
 
