@@ -1,5 +1,8 @@
 import functools
-from .registry import register_tracer_callback, set_client_function_runner
+from .registry import set_cache_value, Namespaces
+
+register_tracer_callback = functools.partial(set_cache_value, Namespaces.tracer_callbacks)
+set_client_function_runner = functools.partial(set_cache_value, Namespaces.client_function_callbacks, "runner")
 
 __function_call_count_map__ = {}
     

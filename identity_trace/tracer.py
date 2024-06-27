@@ -1,10 +1,22 @@
 import jsonpickle
 import os
 import sys
-from .registry import register_frame, remove_frame, is_frame_registered, \
-    get_function_by_name, register_function, remove_function
+import functools
+from .registry import (
+    set_cache_value,
+    delete_cache_value,
+    get_cache_value, Namespaces
+)
 
 
+register_frame = functools.partial(set_cache_value, Namespaces.client_function_wrapper_call_frame)
+remove_frame = functools.partial(delete_cache_value, Namespaces.client_function_wrapper_call_frame)
+is_frame_registered = functools.partial(get_cache_value, Namespaces.client_function_wrapper_call_frame)
+
+
+register_function = functools.partial(set_cache_value, Namespaces.client_function_trace_by_id)
+get_function_by_name = functools.partial(get_cache_value, Namespaces.client_function_trace_by_id)
+remove_function = functools.partial(delete_cache_value, Namespaces.client_function_trace_by_id)
 
 # Get the script's path
 script_path = sys.argv[0]
@@ -50,7 +62,7 @@ def general_preprocessing_tracer(
     if find_parent:
 
         # register the frame
-        register_frame(function_call_frame, client_executed_function_trace)
+        register_frame(_get_frame_id(function_call_frame), client_executed_function_trace)
 
         # If we should find parent, then this function should be registered, so that its children
         # can find it as well
@@ -59,7 +71,7 @@ def general_preprocessing_tracer(
         parent_frame = function_call_frame.f_back
         while parent_frame:
 
-            parent_trace_instance = is_frame_registered(parent_frame)
+            parent_trace_instance = is_frame_registered(_get_frame_id(parent_frame))
             if parent_trace_instance:
                 client_executed_function_trace.parent_id = parent_trace_instance.id
                 break
@@ -104,7 +116,7 @@ def general_postprocessing_tracer(
     find_parent = function_specific_config["find_parent"]
     if find_parent:
         # remove the registered frame
-        remove_frame(function_call_frame)
+        remove_frame(_get_frame_id(function_call_frame))
         # Remove function if it was registered
         remove_function(client_executed_function_trace.id)
     
@@ -153,3 +165,5 @@ def general_function_trace_callback(function_specific_config, client_executed_fu
     file.close()
 
 
+def _get_frame_id(frame):
+    return str(id(frame))

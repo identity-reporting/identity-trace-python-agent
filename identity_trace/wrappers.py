@@ -4,8 +4,12 @@ import json
 import inspect
 import time
 import uuid
+import functools
 
-from .registry import get_tracer_callback, get_client_function_runner
+from .registry import get_cache_value, Namespaces
+
+get_tracer_callback = functools.partial(get_cache_value, Namespaces.tracer_callbacks)
+get_client_function_runner = functools.partial(get_cache_value, Namespaces.client_function_callbacks, "runner")
 
 class ClientExecutedFunctionTrace:
     config = None
