@@ -46,17 +46,6 @@ def delete_cache_value(namespace, key):
 
 
 
-__client_function_decorator__ = {}
-
-def set_client_function_decorator(callback):
-
-    __client_function_decorator__["callback"] = callback
-
-def get_client_function_decorator():
-
-    return __client_function_decorator__["callback"]
-
-
 
 __client_function_runner__ = dict(runner = None)
 

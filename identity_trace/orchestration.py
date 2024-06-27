@@ -1,4 +1,4 @@
-from .registry import set_client_function_decorator, set_cache_value, Namespaces
+from .registry import set_cache_value, Namespaces
 from .test_runner import test_run_action
 from .tracer import general_preprocessing_tracer, general_postprocessing_tracer,\
     general_function_trace_callback
@@ -49,7 +49,11 @@ def register_client_function_wrapper():
     if __local_map__.get("wrapper", False):
         return
     
-    set_client_function_decorator(general_wrapper)
+    set_cache_value(
+        Namespaces.client_function_callbacks,
+        "decorator",
+        general_wrapper
+    )
 
     __local_map__["wrapper"] = True
 

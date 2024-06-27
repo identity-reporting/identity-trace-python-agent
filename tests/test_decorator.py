@@ -1,7 +1,6 @@
+from unittest.mock import patch
+
 from .utils import TestCase
-
-
-from identity_trace.registry import set_client_function_decorator
 from identity_trace.constants import DEFAULT_FUNCTION_SPECIFIC_CONFIG
 from identity_trace.decorator import watch
 
@@ -27,8 +26,6 @@ def mocked_decorator(
         decorated_client_function
     ]
 
-# Set the decorator before calling watch
-set_client_function_decorator(mocked_decorator)
 
 
 
@@ -38,8 +35,10 @@ def mock_function_to_decorate():
 class DecoratorTests(TestCase):
 
 
-    def test_decorator_basic(self):
+    @patch("identity_trace.decorator.get_client_function_decorator")
+    def test_decorator_basic(self, get_client_function_decorator_mock):
 
+        get_client_function_decorator_mock.return_value = mocked_decorator
         # Watch returns decorator
         decorator = watch(name="some name", description="some desc")
 
@@ -68,7 +67,10 @@ class DecoratorTests(TestCase):
         # Function to decorate
         self.assertEqual(res[6], mock_function_to_decorate)
     
-    def test_decorator_name(self):
+    @patch("identity_trace.decorator.get_client_function_decorator")
+    def test_decorator_name(self, get_client_function_decorator_mock):
+
+        get_client_function_decorator_mock.return_value = mocked_decorator
 
         # Watch returns decorator
         decorator = watch()
@@ -78,7 +80,10 @@ class DecoratorTests(TestCase):
         self.assertEqual(res[3], None)
         self.assertEqual(res[4], None)
     
-    def test_decorator_config_override(self):
+    @patch("identity_trace.decorator.get_client_function_decorator")
+    def test_decorator_config_override(self, get_client_function_decorator_mock):
+
+        get_client_function_decorator_mock.return_value = mocked_decorator
 
         # Watch returns decorator
         decorator = watch(config=dict(copy_output=False))
