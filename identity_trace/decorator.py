@@ -2,13 +2,10 @@ import inspect
 import functools
 
 from .constants import DEFAULT_FUNCTION_SPECIFIC_CONFIG
-from .orchestration import orchestrate
 from .registry import get_cache_value, Namespaces
 
 
 get_client_function_decorator = functools.partial(get_cache_value, "decorator")
-
-orchestrate()
 
 
 def watch(name = None, description = None, config = None):

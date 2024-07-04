@@ -7,12 +7,10 @@ import sys
 import argparse
 
 from .registry import get_cache_value, set_cache_value, Namespaces
-from .orchestration import orchestrate
 
 get_run_action = functools.partial(get_cache_value, Namespaces.run_file_action)
 register_tracer_callback = functools.partial(set_cache_value, Namespaces.tracer_callbacks)
 
-orchestrate()
 
 FUNCTION_TRACE_MAP = dict()
 
@@ -37,16 +35,16 @@ file_path = "{}/TestCase/".format(IDENTITY_CONFIG_FOLDER_NAME)
 if script_directory:
     file_path = script_directory + "/" + file_path
 
-def run_test():
+def execute_run_file():
 
     args = argument_parser.parse_args()
 
     if args.runFile:
-        return execute_run_file(args.runFile)
+        return _execute_run_file(args.runFile)
     
 
 
-def execute_run_file(run_file_id):
+def _execute_run_file(run_file_id):
     '''
         Reads run file, validates the JSON and run every function specified in the run file.
     '''
