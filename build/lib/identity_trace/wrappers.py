@@ -44,8 +44,14 @@ class ClientExecutedFunctionTrace:
         self.id = str(uuid.uuid4())
 
     def serialize(self):
+
+        config_copy = dict()
+        config_copy.update(self.config)
+        del config_copy["output_serializer"]
+        del config_copy["input_serializer"]
+
         return dict(
-            config=self.config,
+            config=config_copy,
             executionContext = self.execution_context,
             packageName=self.package_name,
             fileName=self.file_name,

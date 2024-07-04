@@ -5,7 +5,9 @@ from .constants import DEFAULT_FUNCTION_SPECIFIC_CONFIG
 from .registry import get_cache_value, Namespaces
 
 
-get_client_function_decorator = functools.partial(get_cache_value, "decorator")
+get_client_function_decorator = functools.partial(
+    get_cache_value, Namespaces.client_function_callbacks, "decorator"
+)
 
 
 def watch(name = None, description = None, config = None):

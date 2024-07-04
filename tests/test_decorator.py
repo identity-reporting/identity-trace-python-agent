@@ -66,6 +66,8 @@ class DecoratorTests(TestCase):
 
         # Function to decorate
         self.assertEqual(res[6], mock_function_to_decorate)
+
+        get_client_function_decorator_mock.assert_called_once_with()
     
     @patch("identity_trace.decorator.get_client_function_decorator")
     def test_decorator_name(self, get_client_function_decorator_mock):
