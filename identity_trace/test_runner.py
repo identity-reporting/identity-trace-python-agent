@@ -23,11 +23,9 @@ def _has_mock_for_function(module_name, function_name, function_mocks, call_coun
 
 def test_run_action(function_config, on_function_complete_trace):
 
-    set_client_function_runner(
-        functools.partial(client_function_runner, function_config)
+    return dict(
+        function_runner = client_function_runner
     )
-    register_tracer_callback(
-        "client_executed_function_finish", on_function_complete_trace)
 
 
 def get_mocks_from_function_run_config(function_config):
