@@ -1,8 +1,8 @@
 import importlib
 import inspect
-import requests
 import json
 import os
+import requests
 import functools
 import sys
 import argparse
@@ -21,10 +21,12 @@ FUNCTION_TRACE_MAP = dict()
 
 argument_parser = argparse.ArgumentParser(description='Process Run File Argument')
 argument_parser.add_argument("--runFile")
-argument_parser.add_argument("run_tests", action="store_true")
+argument_parser.add_argument("--runTests", action="store_true")
 argument_parser.add_argument("--fileName")
 argument_parser.add_argument("--functionName")
 argument_parser.add_argument("--moduleName")
+argument_parser.add_argument("--name")
+argument_parser.add_argument("--reportURL")
 
 
 
@@ -44,18 +46,25 @@ file_path = "{}/TestCase/".format(IDENTITY_CONFIG_FOLDER_NAME)
 if script_directory:
     file_path = script_directory + "/" + file_path
 
-def execute_run_file():
+def initialize():
 
     args = argument_parser.parse_args()
 
-    if args.runFile and False:
+    if args.runFile:
         return _execute_run_file(args.runFile)
-    elif args.run_tests or True:
+    elif args.runTests:
         module_name = args.moduleName or None
-        file_name = argument_parser.fileName or None
-        function_name = argument_parser.functionName or None
-        report_url = 
-        run_tests(function_name=function_name, module_name=module_name, file_name=file_name)
+        file_name = args.fileName or None
+        function_name = args.functionName or None
+        test_suite_name = args.name or None
+        report_url = args.reportURL or None
+        run_tests(
+            function_name=function_name,
+            module_name=module_name,
+            file_name=file_name,
+            test_suite_name=test_suite_name,
+            report_url=report_url
+        )
     
 
 
@@ -67,10 +76,11 @@ def _execute_run_file(run_file_id):
     run_file_config = read_run_file_json(run_file_path)
 
     run_functions_from_run_file_config(run_file_id, run_file_config)
+    write_run_file_json(run_file_path, run_file_config)
     
 def write_run_file_json(run_file_id, run_file_config):
 
-    run_file_path = f"__identity__/__temp__/{run_file_id}.json"
+    run_file_path = f"__identity__/{run_file_id}"
 
     # Read the run file
     if script_directory:
@@ -123,7 +133,10 @@ def run_functions_from_run_file_config(run_file_id, run_file_config):
     '''
     # Run each function specified in the run file
     for function_config in run_file_config["functions_to_run"]:
-        run_function_from_run_file(run_file_id, run_file_config, function_config)
+        trace_instance = run_function_from_run_file(
+            function_config
+        )
+        function_config["executed_function"] = trace_instance.serialize()
 
 
 def run_function_from_run_file(function_config = None):
@@ -353,13 +366,15 @@ def client_function_runner(client_executed_function_trace, decorated_client_func
     client_executed_function_trace.execution_context["execution_id"] = function_config["execution_id"]
     runner = None
     if action_config:
-        action_config.get("function_runner")
+        runner = action_config.get("function_runner")
     
     if runner:
+        print(f"Found runner for {client_executed_function_trace.name}")
         return runner(
             function_config, client_executed_function_trace, decorated_client_function,  *args, **kwargs
         )
     else:
+        print(f"Did not find runner for {client_executed_function_trace.name}")
         return decorated_client_function(*args, **kwargs)
 
     
@@ -399,7 +414,13 @@ def record_function_run_trace(execution_id):
 
 
 
-def run_tests(function_name = None, module_name = None, file_name = None, report_url = None):
+def run_tests(
+        function_name = None,
+        module_name = None,
+        file_name = None,
+        test_suite_name=None,
+        report_url = None
+):
 
     run_file_path = f"TestCase"
     test_case_dir_to_scan = "__identity__/TestCase"
@@ -415,6 +436,7 @@ def run_tests(function_name = None, module_name = None, file_name = None, report
 
         for test_suite_file in entries:
 
+            
             skip_test_suite = False
             test_suite_json = read_run_file_json(f"{run_file_path}/{test_suite_file.name}")
 
@@ -424,9 +446,10 @@ def run_tests(function_name = None, module_name = None, file_name = None, report
             elif file_name and not (file_name in test_suite_json["functionMeta"]["fileName"]):
                 skip_test_suite = True
             
-            elif function_name and not (function_name in test_suite_json["name"]):
+            elif function_name and not (function_name in test_suite_json["functionMeta"]["name"]):
                 skip_test_suite = True
-
+            elif test_suite_name and not (test_suite_name in test_suite_json["name"]):
+                skip_test_suite = True
 
             if not skip_test_suite:
 
@@ -465,17 +488,29 @@ def run_tests(function_name = None, module_name = None, file_name = None, report
 
                 print(f"{matcherResult.testCaseName} {'Passed' if matcherResult.successful else 'Failed.'}")
 
+                import time
+                # Start the timer
+                start_time = time.time()
+
                 if report_url:
                     try:
-                        res = requests.post(report_url, json=matcherResult.serialize(), timeout=2)
+                       
+                        res = requests.post(report_url, json=matcherResult.serialize(), timeout=0.001)
                         res.raise_for_status()
+                        
                     except Exception as e:
                         print(
                             str(e)
                         )
 
+                # Stop the timer
+                end_time = time.time()
+
+                # Calculate the execution time
+                execution_time = end_time - start_time
+                print(f"Took {str(execution_time)} ms to complete the request")
             else:
-                print(f"{test_case["name"]} Skipped")
+                print(f"{test_suite_json['name']} Skipped")
 
 
     print(f"{failed_count} Failed, {passed_count} Passed")
