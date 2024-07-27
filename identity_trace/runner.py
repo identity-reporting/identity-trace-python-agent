@@ -144,15 +144,6 @@ def run_function_from_run_file(function_config = None):
         Executed a function run configuration specified in the run file.
     '''
     function_meta = function_config.get("function_meta", None)
-    
-    action_config = None
-    if function_config.get("action", None):
-        run_action = function_config.get("action", None)
-
-        action_callback = get_run_action(run_action)
-
-        if action_callback:
-            action_config = action_callback(function_config)
         
     register_tracer_callback(
         "client_executed_function_finish",
@@ -165,9 +156,7 @@ def run_function_from_run_file(function_config = None):
     current_frame = inspect.currentframe()
 
     FUNCTION_ROOT_MAP[current_frame] = execution_id
-    FUNCTION_CONFIG_MAP[execution_id] = [
-        function_config, action_config
-    ]
+    FUNCTION_CONFIG_MAP[execution_id] = function_config
     
     if function_meta:
         run_function_by_meta(function_config)
@@ -345,7 +334,7 @@ def on_run_file_function_complete(
     if client_executed_function_trace.parent_id:
         return
 
-    function_config, action_config = get_config_for_executed_client_function(
+    function_config = get_config_for_executed_client_function(
         client_executed_function_trace,
         function_frame
     )
@@ -358,7 +347,7 @@ def on_run_file_function_complete(
 __FUNCTION_CALL_COUNT_MAP__ = dict()
 def client_function_runner(client_executed_function_trace, decorated_client_function,  *args, **kwargs):
 
-    function_config, action_config = get_config_for_executed_client_function(
+    function_config = get_config_for_executed_client_function(
         client_executed_function_trace,
         inspect.currentframe()
     )
@@ -408,19 +397,7 @@ def client_function_runner(client_executed_function_trace, decorated_client_func
 
             return mock_for_function.get("output", None)
     
-    
-    runner = None
-    if action_config:
-        runner = action_config.get("function_runner")
-    
-    if runner:
-        print(f"Found runner for {client_executed_function_trace.name}")
-        return runner(
-            function_config, client_executed_function_trace, decorated_client_function,  *args, **kwargs
-        )
-    else:
-        print(f"Did not find runner for {client_executed_function_trace.name}")
-        return decorated_client_function(*args, **kwargs)
+    return decorated_client_function(*args, **kwargs)
 
     
 def get_config_for_executed_client_function(client_executed_function_trace, frame):
@@ -430,8 +407,8 @@ def get_config_for_executed_client_function(client_executed_function_trace, fram
             if FUNCTION_ROOT_MAP.get(frame, None):
 
                 execution_id = FUNCTION_ROOT_MAP.get(frame)
-                function_config, action_config = FUNCTION_CONFIG_MAP.get(execution_id)
-                return [function_config, action_config]
+                function_config = FUNCTION_CONFIG_MAP.get(execution_id)
+                return function_config
             
             frame = frame.f_back
     else:
@@ -447,10 +424,10 @@ def get_config_for_executed_client_function(client_executed_function_trace, fram
         if not execution_id:
             raise Exception("Execution ID not set")
         
-        function_config, action_config = FUNCTION_CONFIG_MAP.get(execution_id, [None, None])
-        return [function_config, action_config]
+        function_config = FUNCTION_CONFIG_MAP.get(execution_id, [None, None])
+        return function_config
     
-    return [None, None]
+    return None
     
 
 def record_function_run_trace(execution_id):
