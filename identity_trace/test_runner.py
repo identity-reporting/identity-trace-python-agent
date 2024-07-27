@@ -1,5 +1,5 @@
 import functools
-from .registry import set_cache_value, Namespaces
+from .registry import set_cache_value, Namespaces, get_cache_value
 
 register_tracer_callback = functools.partial(
     set_cache_value, Namespaces.tracer_callbacks)
@@ -21,7 +21,7 @@ def _has_mock_for_function(module_name, function_name, function_mocks, call_coun
     return False
 
 
-def test_run_action(function_config, on_function_complete_trace):
+def test_run_action(function_config):
 
     return dict(
         function_runner = client_function_runner
@@ -56,13 +56,27 @@ def client_function_runner(
         Runs the client function and handles function mocks defined in run function config.
     '''
 
+    if not client_executed_function_trace.parent_id:
+        root_function_trace = client_executed_function_trace
+        client_executed_function_trace.test_run__root_function = client_executed_function_trace
+    else:
+        parent_function = get_cache_value(
+            Namespaces.client_function_trace_by_id,
+            client_executed_function_trace.parent_id
+        )
+        root_function_trace = parent_function.test_run__root_function
+        client_executed_function_trace.test_run__root_function = root_function_trace
+
     key = f"{client_executed_function_trace.module_name}:{client_executed_function_trace.name}"
 
     if client_executed_function_trace.name == "add_item_to_ticket":
         print("ssss")
 
-    call_count = __function_call_count_map__.get(key, 0) + 1
-    __function_call_count_map__[key] = call_count
+    if not __function_call_count_map__.get(root_function_trace.id, None):
+        __function_call_count_map__[root_function_trace.id] = dict()
+    
+    call_count = __function_call_count_map__[root_function_trace.id].get(key, 0) + 1
+    __function_call_count_map__[root_function_trace.id][key] = call_count
 
     function_mocks = get_mocks_from_function_run_config(function_run_config)
     mock_for_function = None

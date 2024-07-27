@@ -354,16 +354,59 @@ def on_run_file_function_complete(
 
     
 
+
+__FUNCTION_CALL_COUNT_MAP__ = dict()
 def client_function_runner(client_executed_function_trace, decorated_client_function,  *args, **kwargs):
 
     function_config, action_config = get_config_for_executed_client_function(
         client_executed_function_trace,
         inspect.currentframe()
     )
+
+    client_executed_function_trace.execution_context["execution_id"] = function_config["execution_id"]
+
+    # If function is mocked, return mock value
+    if function_config.get("mocks", None):
+
+        # Find the root function
+        if not client_executed_function_trace.parent_id:
+            root_function_trace = client_executed_function_trace
+            client_executed_function_trace.test_run__root_function = client_executed_function_trace
+        else:
+            parent_function = get_cache_value(
+                Namespaces.client_function_trace_by_id,
+                client_executed_function_trace.parent_id
+            )
+            root_function_trace = parent_function.test_run__root_function
+            client_executed_function_trace.test_run__root_function = root_function_trace
         
 
+        # Get function call count with respect to root function
+        # __FUNCTION_CALL_COUNT_MAP__[root function id] = dict (
+        #    [module_name:function_name] = call count
+        # )
+        if not __FUNCTION_CALL_COUNT_MAP__.get(root_function_trace.id, None):
+            __FUNCTION_CALL_COUNT_MAP__[root_function_trace.id] = dict()
+        
+        key = f"{client_executed_function_trace.module_name}:{client_executed_function_trace.name}"
+        call_count = __FUNCTION_CALL_COUNT_MAP__[root_function_trace.id].get(key, 0) + 1
+        __FUNCTION_CALL_COUNT_MAP__[root_function_trace.id][key] = call_count
+
+        # If mock is found for the call count, return mocked output
+        mock_for_function = get_mocks_for_function(
+            function_config,
+            client_executed_function_trace.module_name,
+            client_executed_function_trace.name,
+            call_count
+        )
+
+        if mock_for_function:
+            if mock_for_function.get("errorToThrow", None):
+                raise Exception(mock_for_function["errorToThrow"])
+
+            return mock_for_function.get("output", None)
     
-    client_executed_function_trace.execution_context["execution_id"] = function_config["execution_id"]
+    
     runner = None
     if action_config:
         runner = action_config.get("function_runner")
@@ -454,6 +497,30 @@ def run_tests(
             if not skip_test_suite:
 
                 for test_case in test_suite_json["tests"]:
+                    
+                    mocks = dict()
+
+                    def visit(config):
+                        
+                        if config["isMocked"]:
+                            module_name = config["functionMeta"]["moduleName"]
+                            function_name = config["functionMeta"]["name"]
+                            key = f"{module_name}:{function_name}"
+                            
+                            if not mocks.get(key):
+                                mocks[key] = dict()
+                            
+                            mocks[key][config["functionCallCount"]] = dict(
+                                errorToThrow = config.get("mockedErrorMessage", None),
+                                output = config.get("mockedOutput", None),
+                            )
+                        else:
+                            for child in config["children"]:
+                                visit(child)
+
+                    # create mocks
+                    visit(test_case["config"])
+
                     function_to_run = dict(
                         function_meta = dict(
                             module_name = test_case["config"]["functionMeta"]["moduleName"],
@@ -464,8 +531,8 @@ def run_tests(
                         input_to_pass = test_case["inputToPass"],
                         action = "test_run",
                         context = dict(
+                            mocks = mocks,
                             test_run = dict(
-                                mocks = test_case["mocks"],
                                 testSuiteID = test_suite_json["id"],
                                 testCaseID = test_case["id"]
                             )
@@ -514,3 +581,24 @@ def run_tests(
 
 
     print(f"{failed_count} Failed, {passed_count} Passed")
+
+
+
+def get_mocks_for_function(function_config, module_name, function_name, call_count):
+    if function_config.get("context", None) and isinstance(function_config["context"], dict):
+
+        mocks: dict = function_config["context"].get("mocks", dict()) or dict()
+
+        if len(mocks.keys()) < 1:
+            return None
+
+        mocks_for_function = mocks.get(f"{module_name}:{function_name}", None)
+        
+        if mocks_for_function and isinstance(mocks_for_function, dict):
+            mock_value = mocks_for_function.get(str(call_count), None)
+
+            if mock_value and isinstance(mock_value, dict):
+                return mock_value
+
+    return None
+
