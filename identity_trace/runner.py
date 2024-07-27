@@ -366,7 +366,8 @@ def client_function_runner(client_executed_function_trace, decorated_client_func
     client_executed_function_trace.execution_context["execution_id"] = function_config["execution_id"]
 
     # If function is mocked, return mock value
-    if function_config.get("mocks", None):
+    context = function_config.get("context", None)
+    if context and isinstance(context, dict) and context.get("mocks"):
 
         # Find the root function
         if not client_executed_function_trace.parent_id:
@@ -401,6 +402,7 @@ def client_function_runner(client_executed_function_trace, decorated_client_func
         )
 
         if mock_for_function:
+            client_executed_function_trace.execution_context["is_mocked"] = True
             if mock_for_function.get("errorToThrow", None):
                 raise Exception(mock_for_function["errorToThrow"])
 
@@ -601,4 +603,3 @@ def get_mocks_for_function(function_config, module_name, function_name, call_cou
                 return mock_value
 
     return None
-
