@@ -4,7 +4,7 @@ import os
 import json
 import importlib
 import inspect
-from .decorator import watch
+from .decorator import _internal_watch
 
 script_path = sys.argv[0]
 
@@ -67,10 +67,12 @@ def validate_user_config(config):
 def process_user_config(user_config):
     
 
-    for module_name, value in user_config["modules"].values():
+    for module_name, value in user_config["modules"].items():
 
         try:
             module = importlib.import_module(module_name)
+            file_name = getattr(module, "__file__")
+            package_name = getattr(module, "__package__")
         except Exception as e:
             raise Exception((
                 f"Invalid module ({module_name}) specified in the config file. "
@@ -84,7 +86,10 @@ def process_user_config(user_config):
             # wrap it
             for name, obj in inspect.getmembers(module):
                 if inspect.isfunction(obj) or inspect.isclass(obj):
-                    decorated_function = wrap_function(obj)
+                    decorated_function = wrap_function(
+                        obj, name=obj.__name__, description=None, config=None,
+                        file_name=file_name, module_name=module_name, package_name=package_name
+                    )
                     setattr(module, name, decorated_function)
 
 
@@ -105,20 +110,30 @@ def process_user_config(user_config):
                     function_config = name["config"]
 
 
-                func = getattr(module, function_name)
+                func = getattr(module, function_name, None)
                 if not func or not callable(func):
                     raise Exception((
                         f"Invalid callable ({name}) specified inside module ({module_name}) in config file. "
                         f"{name} should be class or function."
                     ))
 
-                decorated_function = wrap_function(func, name=function_name, description=function_description, config=function_config)
+                decorated_function = wrap_function(
+                    func, name=function_name, description=function_description, config=function_config,
+                    file_name=file_name, module_name=module_name, package_name=package_name
+                )
                 setattr(module, function_name, decorated_function)
                 
 
 
 
-def wrap_function(client_function, name, description, config):
-    decorator = watch(name=name, description=description, config=config)
+def wrap_function(client_function, name, description, config, module_name, file_name, package_name):
+    decorator = _internal_watch(
+        name=name,
+        description=description,
+        config=config,
+        module_name=module_name,
+        file_name=file_name,
+        package_name=package_name
+    )
     decorated_function = decorator(client_function)
     return decorated_function

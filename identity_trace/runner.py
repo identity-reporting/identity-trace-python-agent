@@ -52,6 +52,10 @@ def initialize(config_file_name = None):
 
     args = argument_parser.parse_args()
 
+    initialize_with_config_file(
+        config_file_name or args.config or None
+    )
+
     if args.runFile:
         return _execute_run_file(args.runFile)
     elif args.runTests:
@@ -66,10 +70,6 @@ def initialize(config_file_name = None):
             file_name=file_name,
             test_suite_name=test_suite_name,
             report_url=report_url
-        )
-    else:
-        initialize_with_config_file(
-            config_file_name or argument_parser.config or None
         )
     
 
