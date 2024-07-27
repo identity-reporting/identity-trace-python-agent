@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from .registry import get_cache_value, set_cache_value, Namespaces
 from .matcher import matchExecutionWithTestConfig, TestRunForTestSuite
+from .config import initialize_with_config_file
 
 get_run_action = functools.partial(get_cache_value, Namespaces.run_file_action)
 register_tracer_callback = functools.partial(set_cache_value, Namespaces.tracer_callbacks)
@@ -27,6 +28,7 @@ argument_parser.add_argument("--functionName")
 argument_parser.add_argument("--moduleName")
 argument_parser.add_argument("--name")
 argument_parser.add_argument("--reportURL")
+argument_parser.add_argument("--config")
 
 
 
@@ -46,9 +48,13 @@ file_path = "{}/TestCase/".format(IDENTITY_CONFIG_FOLDER_NAME)
 if script_directory:
     file_path = script_directory + "/" + file_path
 
-def initialize():
+def initialize(config_file_name = None):
 
     args = argument_parser.parse_args()
+
+    initialize_with_config_file(
+        config_file_name or args.config or None
+    )
 
     if args.runFile:
         return _execute_run_file(args.runFile)
