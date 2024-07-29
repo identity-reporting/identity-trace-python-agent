@@ -139,10 +139,14 @@ def run_functions_from_run_file_config(run_file_id, run_file_config):
     '''
     # Run each function specified in the run file
     for function_config in run_file_config["functions_to_run"]:
-        trace_instance = run_function_from_run_file(
-            function_config
-        )
-        function_config["executed_function"] = trace_instance.serialize()
+        try:
+            trace_instance = run_function_from_run_file(
+                function_config
+            )
+            function_config["executed_function"] = trace_instance.serialize()
+        except Exception as e:
+            function_config["error"] = str(e)
+        
 
 
 def run_function_from_run_file(function_config = None):
@@ -487,7 +491,7 @@ def run_tests(
 
                     def visit(config):
                         
-                        if config["isMocked"]:
+                        if config.get("isMocked", None):
                             module_name = config["functionMeta"]["moduleName"]
                             function_name = config["functionMeta"]["name"]
                             key = f"{module_name}:{function_name}"
@@ -523,8 +527,11 @@ def run_tests(
                             )
                         )
                     )
-                    trace_instance = run_function_from_run_file(function_to_run)
-                    test_case["executedFunction"] = trace_instance.serialize()
+                    try:
+                        trace_instance = run_function_from_run_file(function_to_run)
+                        test_case["executedFunction"] = trace_instance.serialize()
+                    except Exception as e:
+                        test_case["error"] = str(e)
                 
                 matcherResult = matchExecutionWithTestConfig(TestRunForTestSuite(
                     name=test_suite_json["name"],

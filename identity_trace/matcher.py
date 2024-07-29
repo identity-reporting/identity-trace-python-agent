@@ -66,7 +66,7 @@ class FunctionTestResult:
         )
 
 def matchExecutionWithTestConfig(testRun: TestRunForTestSuite) -> TestResult:
-    results = [matchFunctionWithConfig(t['executedFunction'], t['config']) for t in testRun.tests]
+    results = [matchFunctionWithConfig(t.get('executedFunction', None), t['config']) for t in testRun.tests]
     
     return TestResult(
         testCaseName=testRun.name,
@@ -146,7 +146,13 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
     failureReasons = []
     childrenResults = []
     for i, f in enumerate(config['children']):
-        childResult = matchFunctionWithConfig(executedFunction['children'][i] if 'children' in executedFunction else None, f)
+        child_function_at_index = None
+        try:
+            child_function_at_index = executedFunction['children'][i]
+        except:
+            child_function_at_index = None
+
+        childResult = matchFunctionWithConfig(child_function_at_index if 'children' in executedFunction else None, f)
         if not isResultSuccessful(childResult):
             successful = False
             failureReasons.append(f"Child function {f['functionMeta']['name']}.")
@@ -175,6 +181,8 @@ def objectIsEqual(src: Any, target: Any) -> bool:
             return False
         return all(objectIsEqual(item, target[i]) for i, item in enumerate(src))
     elif isinstance(src, dict):
+        if not isinstance(target, dict):
+            return False
         return all(objectIsEqual(src[k], target.get(k)) for k in src)
     else:
         return src == target
