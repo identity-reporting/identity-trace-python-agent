@@ -28,15 +28,16 @@ class TestResult:
             result = [ 
                 dict(
                     expectation = r["expectation"],
-                    result = r["result"].serialize(),
-                    successful = r["successful"]
+                    result = r["result"].serialize() if r["result"] else None,
+                    successful = r["successful"],
+                    error = r["error"]
                 ) for r in self.result
             ]
         )
 
 
 class FunctionTestResult:
-    def __init__(self, _type, assertions, children, executedSuccessfully, executionContext, id, failureReasons, name, ignored, successful, thrownError):
+    def __init__(self, _type, assertions, children, executedSuccessfully, executionContext, id, failureReasons, name, ignored, successful, thrownError, passedInput):
         self._type = _type
         self.assertions = assertions
         self.children = children
@@ -48,6 +49,7 @@ class FunctionTestResult:
         self.ignored = ignored
         self.successful = successful
         self.thrownError = thrownError
+        self.passedInput = passedInput
     
     def serialize(self):
 
@@ -62,23 +64,38 @@ class FunctionTestResult:
             name = self.name,
             ignored = self.ignored,
             successful = self.successful,
-            thrownError = self.thrownError
+            thrownError = self.thrownError,
+            passedInput = self.passedInput
         )
 
 def matchExecutionWithTestConfig(testRun: TestRunForTestSuite) -> TestResult:
-    results = [matchFunctionWithConfig(t.get('executedFunction', None), t['config']) for t in testRun.tests]
     
+    results = []
+    for i, t in enumerate(testRun.tests):
+        if t.get("error", None):
+            results.append(dict(
+                expectation = testRun.tests[i]['name'],
+                result = None,
+                successful = False,
+                error = t["error"]
+            ))
+        else:
+            res = matchFunctionWithConfig(t.get('executedFunction', None), t['config'])
+            results.append(dict(
+                expectation = testRun.tests[i]['name'],
+                result = res,
+                successful = res.successful,
+                error = None
+            ))
+        
+
     return TestResult(
         testCaseName=testRun.name,
         testCaseDescription=testRun.description,
         functionMeta=testRun.functionMeta,
         testSuiteID=testRun.testSuiteID,
-        successful=all(r.successful for r in results),
-        result=[{
-            'expectation': testRun.tests[i]['name'],
-            'result': r,
-            'successful': r.successful,
-        } for i, r in enumerate(results)]
+        successful=all(r["successful"] for r in results),
+        result=results
     )
 
 def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: Dict[str, Any]) -> FunctionTestResult:
@@ -96,7 +113,8 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
             name=config['functionMeta']['name'],
             ignored=False,
             successful=False,
-            thrownError=""
+            thrownError="",
+            passedInput=None
         )
     
     assertionResults = []
@@ -170,6 +188,7 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
         executionContext=executedFunction['executionContext'],
         id=executedFunction['id'],
         assertions=assertionResults,
+        passedInput=executedFunction.get("input", None)
     )
 
 def isResultSuccessful(obj: FunctionTestResult) -> bool:
