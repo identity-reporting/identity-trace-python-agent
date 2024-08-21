@@ -461,115 +461,121 @@ def run_tests(
         test_case_dir_to_scan = f"{script_directory}/{test_case_dir_to_scan}"
 
 
+    test_suite_index = read_run_file_json(f"{run_file_path}/index.json")
+
+
     passed_count = 0
     failed_count = 0
 
-    with os.scandir(test_case_dir_to_scan) as entries:
+    
 
-        for test_suite_file in entries:
+    for test_suite_index_entry in test_suite_index:
 
+        
+        skip_test_suite = False
+
+        if module_name and not (module_name in test_suite_index_entry[2]):
+            print(module_name, test_suite_index_entry[2], "Not")
+            skip_test_suite = True
+        
+        elif file_name and not (file_name in test_suite_index_entry[3]):
+            skip_test_suite = True
+
+        elif test_suite_name and not (test_suite_name in test_suite_index_entry[1]):
+            skip_test_suite = True
+
+        
+        
+
+        if not skip_test_suite:
             
-            skip_test_suite = False
-            test_suite_json = read_run_file_json(f"{run_file_path}/{test_suite_file.name}")
-
-            if module_name and not (module_name in test_suite_json["functionMeta"]["moduleName"]):
-                skip_test_suite = True
+            test_suite_json = read_run_file_json(f"{run_file_path}/{test_suite_index_entry[0]}.json")
             
-            elif file_name and not (file_name in test_suite_json["functionMeta"]["fileName"]):
-                skip_test_suite = True
-            
-            elif function_name and not (function_name in test_suite_json["functionMeta"]["name"]):
-                skip_test_suite = True
-            elif test_suite_name and not (test_suite_name in test_suite_json["name"]):
-                skip_test_suite = True
+            for test_case in test_suite_json["tests"]:
+                
+                mocks = dict()
 
-            if not skip_test_suite:
-
-                for test_case in test_suite_json["tests"]:
+                def visit(config):
                     
-                    mocks = dict()
-
-                    def visit(config):
+                    if config.get("isMocked", None):
+                        module_name = config["functionMeta"]["moduleName"]
+                        function_name = config["functionMeta"]["name"]
+                        key = f"{module_name}:{function_name}"
                         
-                        if config.get("isMocked", None):
-                            module_name = config["functionMeta"]["moduleName"]
-                            function_name = config["functionMeta"]["name"]
-                            key = f"{module_name}:{function_name}"
-                            
-                            if not mocks.get(key):
-                                mocks[key] = dict()
-                            
-                            mocks[key][config["functionCallCount"]] = dict(
-                                errorToThrow = config.get("mockedErrorMessage", None),
-                                output = config.get("mockedOutput", None),
-                            )
-                        else:
-                            for child in config["children"]:
-                                visit(child)
+                        if not mocks.get(key):
+                            mocks[key] = dict()
+                        
+                        mocks[key][config["functionCallCount"]] = dict(
+                            errorToThrow = config.get("mockedErrorMessage", None),
+                            output = config.get("mockedOutput", None),
+                        )
+                    else:
+                        for child in config["children"]:
+                            visit(child)
 
-                    # create mocks
-                    visit(test_case["config"])
+                # create mocks
+                visit(test_case["config"])
 
-                    function_to_run = dict(
-                        function_meta = dict(
-                            module_name = test_case["config"]["functionMeta"]["moduleName"],
-                            file_name = test_case["config"]["functionMeta"]["fileName"],
-                            function_name = test_case["config"]["functionMeta"]["name"],
-                        ),
-                        execution_id = str(uuid4()),
-                        input_to_pass = test_case["inputToPass"],
-                        action = "test_run",
-                        context = dict(
-                            mocks = mocks,
-                            test_run = dict(
-                                testSuiteID = test_suite_json["id"],
-                                testCaseID = test_case["id"]
-                            )
+                function_to_run = dict(
+                    function_meta = dict(
+                        module_name = test_case["config"]["functionMeta"]["moduleName"],
+                        file_name = test_case["config"]["functionMeta"]["fileName"],
+                        function_name = test_case["config"]["functionMeta"]["name"],
+                    ),
+                    execution_id = str(uuid4()),
+                    input_to_pass = test_case["inputToPass"],
+                    action = "test_run",
+                    context = dict(
+                        mocks = mocks,
+                        test_run = dict(
+                            testSuiteID = test_suite_json["id"],
+                            testCaseID = test_case["id"]
                         )
                     )
-                    try:
-                        trace_instance = run_function_from_run_file(function_to_run)
-                        test_case["executedFunction"] = trace_instance.serialize()
-                    except Exception as e:
-                        test_case["error"] = str(e)
-                
-                matcherResult = matchExecutionWithTestConfig(TestRunForTestSuite(
-                    name=test_suite_json["name"],
-                    description=test_suite_json["description"],
-                    functionMeta=test_suite_json["functionMeta"],
-                    testSuiteID=test_suite_json["id"],
-                    tests=test_suite_json["tests"]
-                ))
-                if matcherResult.successful:
-                    passed_count = passed_count + 1
-                else:
-                    failed_count = failed_count + 1
-
-                print(f"{matcherResult.testCaseName} {'Passed' if matcherResult.successful else 'Failed.'}")
-
-                import time
-                # Start the timer
-                start_time = time.time()
-
-                if report_url:
-                    try:
-                       
-                        res = requests.post(report_url, json=matcherResult.serialize(), timeout=0.001)
-                        res.raise_for_status()
-                        
-                    except Exception as e:
-                        print(
-                            str(e)
-                        )
-
-                # Stop the timer
-                end_time = time.time()
-
-                # Calculate the execution time
-                execution_time = end_time - start_time
-                print(f"Took {str(execution_time)} ms to complete the request")
+                )
+                try:
+                    trace_instance = run_function_from_run_file(function_to_run)
+                    test_case["executedFunction"] = trace_instance.serialize()
+                except Exception as e:
+                    test_case["error"] = str(e)
+            
+            matcherResult = matchExecutionWithTestConfig(TestRunForTestSuite(
+                name=test_suite_json["name"],
+                description=test_suite_json["description"],
+                functionMeta=test_suite_json["functionMeta"],
+                testSuiteID=test_suite_json["id"],
+                tests=test_suite_json["tests"]
+            ))
+            if matcherResult.successful:
+                passed_count = passed_count + 1
             else:
-                print(f"{test_suite_json['name']} Skipped")
+                failed_count = failed_count + 1
+
+            print(f"{matcherResult.testCaseName} {'Passed' if matcherResult.successful else 'Failed.'}")
+
+            import time
+            # Start the timer
+            start_time = time.time()
+
+            if report_url:
+                try:
+                    
+                    res = requests.post(report_url, json=matcherResult.serialize(), timeout=0.001)
+                    res.raise_for_status()
+                    
+                except Exception as e:
+                    print(
+                        str(e)
+                    )
+
+            # Stop the timer
+            end_time = time.time()
+
+            # Calculate the execution time
+            execution_time = end_time - start_time
+            print(f"Took {str(execution_time)} ms to complete the request")
+        else:
+            print(f"{test_suite_index_entry[1]} Skipped")
 
 
     print(f"{failed_count} Failed, {passed_count} Passed")
