@@ -48,6 +48,5 @@ def register_client_function_wrapper():
 
 def orchestrate():
 
-    register_run_actions()
     register_client_function_wrapper()
     register_tracer_callbacks()

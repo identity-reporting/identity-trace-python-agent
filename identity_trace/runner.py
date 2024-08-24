@@ -11,6 +11,7 @@ from uuid import uuid4
 from .registry import get_cache_value, set_cache_value, Namespaces
 from .matcher import matchExecutionWithTestConfig, TestRunForTestSuite
 from .config import initialize_with_config_file
+from .logger import logger
 
 get_run_action = functools.partial(get_cache_value, Namespaces.run_file_action)
 register_tracer_callback = functools.partial(set_cache_value, Namespaces.tracer_callbacks)
@@ -57,8 +58,10 @@ def initialize(config_file_name = None):
     )
 
     if args.runFile:
+        logger.debug(f"Running python code with --runFile argument ({args.runFile}).")
         return _execute_run_file(args.runFile)
     elif args.runTests:
+        logger.debug("Running tests with --runTests argument.")
         module_name = args.moduleName or None
         file_name = args.fileName or None
         function_name = args.functionName or None
@@ -111,6 +114,7 @@ def read_run_file_json(run_file_id):
 
     file = None
     try:
+        logger.debug(f"Reading file {run_file_id}.")
         file = open(run_file_id, "r")
         run_file_config_string = file.read()
         file.close()
@@ -154,7 +158,6 @@ def run_function_from_run_file(function_config = None):
         Executed a function run configuration specified in the run file.
     '''
     function_meta = function_config.get("function_meta", None)
-        
     register_tracer_callback(
         "client_executed_function_finish",
         on_run_file_function_complete
@@ -200,7 +203,7 @@ def run_function_by_meta(function_config):
     function_name = function_meta["function_name"]
     input_to_pass = function_config["input_to_pass"]
     
-
+    logger.debug("Running function with meta.", function_meta)
     # if the module is __main__ then module name should be the file name 
     # because for this file, it will be a module
     if module_name == "__main__":
@@ -212,7 +215,9 @@ def run_function_by_meta(function_config):
 
     # Import the module
     try:
+        logger.log(f"Importing module {module_name}.")
         module = importlib.import_module(module_name)
+        logger.log(f"Getting function {function_name} from {module_name}.")
         function_to_run = getattr(module, function_name, None)
     except Exception as e:
         raise Exception((
@@ -239,12 +244,14 @@ def run_function_by_meta(function_config):
         kw_args = input_to_pass[-1]
         args = input_to_pass[:-1]
         
+        logger.log(f"Running function with args({args}) kwargs({kw_args}).")
         function_to_run(*args, **kw_args)
 
     except Exception as e:
             # If the function was not traced, it means that function didn't even
             # execute or agent failed to run the function
             thrown_exception = e
+            logger.error(e)
             print(e)
 
     if not FUNCTION_TRACE_MAP.get(function_config["execution_id"], None):
@@ -270,6 +277,7 @@ def run_function_by_code(function_config):
     '''
 
     code_to_run = function_config.get("code", None)
+    logger.debug("running function with code", code_to_run)
 
     # register tracer callback
     register_trace_callback_for_function_run(function_config)
@@ -341,6 +349,12 @@ def on_run_file_function_complete(
         @param function_frame: python frame of the decorator function
     '''
 
+    logger.debug((
+        f"Function execution complete and recorded"
+        f"for {client_executed_function_trace.name} "
+        f"from {client_executed_function_trace.module_name}."
+    ))
+
     if client_executed_function_trace.parent_id:
         return
 
@@ -356,6 +370,11 @@ def on_run_file_function_complete(
 
 __FUNCTION_CALL_COUNT_MAP__ = dict()
 def client_function_runner(client_executed_function_trace, decorated_client_function,  *args, **kwargs):
+
+    function_detail = f"{client_executed_function_trace.name} from {client_executed_function_trace.module_name}"
+    logger.debug((
+        f"Client function runner hit for {function_detail}"
+    ))
 
     function_config = get_config_for_executed_client_function(
         client_executed_function_trace,
@@ -401,12 +420,13 @@ def client_function_runner(client_executed_function_trace, decorated_client_func
         )
 
         if mock_for_function:
+            logger.info(f"Found mocks for function {function_detail}")
             client_executed_function_trace.execution_context["is_mocked"] = True
             if mock_for_function.get("errorToThrow", None):
                 raise Exception(mock_for_function["errorToThrow"])
 
             return mock_for_function.get("output", None)
-    
+    logger.debug(f"Could not find mocks for {function_detail}. Running original client function.")
     return decorated_client_function(*args, **kwargs)
 
     
@@ -455,10 +475,6 @@ def run_tests(
 ):
 
     run_file_path = f"TestCase"
-    test_case_dir_to_scan = "__identity__/TestCase"
-    # Read the run file
-    if script_directory:
-        test_case_dir_to_scan = f"{script_directory}/{test_case_dir_to_scan}"
 
 
     test_suite_index = read_run_file_json(f"{run_file_path}/index.json")
@@ -473,15 +489,18 @@ def run_tests(
 
         
         skip_test_suite = False
+        logger.debug()
 
         if module_name and not (module_name in test_suite_index_entry[2]):
-            print(module_name, test_suite_index_entry[2], "Not")
+            logger.debug(f"Applying module name filter ({module_name}).")
             skip_test_suite = True
         
         elif file_name and not (file_name in test_suite_index_entry[3]):
+            logger.debug(f"Applying file name filter ({file_name}).")
             skip_test_suite = True
 
         elif test_suite_name and not (test_suite_name in test_suite_index_entry[1]):
+            logger.debug(f"Applying name filter ({test_suite_name}).")
             skip_test_suite = True
 
         
@@ -489,6 +508,7 @@ def run_tests(
 
         if not skip_test_suite:
             
+            logger.log(f"Running test {test_suite_index_entry[1]}.")
             test_suite_json = read_run_file_json(f"{run_file_path}/{test_suite_index_entry[0]}.json")
             
             for test_case in test_suite_json["tests"]:
@@ -551,21 +571,20 @@ def run_tests(
             else:
                 failed_count = failed_count + 1
 
-            print(f"{matcherResult.testCaseName} {'Passed' if matcherResult.successful else 'Failed.'}")
-
             import time
             # Start the timer
             start_time = time.time()
 
             if report_url:
                 try:
-                    
+                    logger.debug(f"Sending test result to endpoint {report_url}.")
                     res = requests.post(report_url, json=matcherResult.serialize(), timeout=0.001)
                     res.raise_for_status()
                     
                 except Exception as e:
-                    print(
-                        str(e)
+                    logger.error(
+                        f"Failed to send test result to {report_url}. "
+                        f"{e}"
                     )
 
             # Stop the timer
@@ -573,12 +592,14 @@ def run_tests(
 
             # Calculate the execution time
             execution_time = end_time - start_time
-            print(f"Took {str(execution_time)} ms to complete the request")
+            logger.log(f"{matcherResult.testCaseName} {execution_time}ms. {'Passed.' if matcherResult.successful else 'Failed.'}")
         else:
-            print(f"{test_suite_index_entry[1]} Skipped")
+            logger.debug(f"{test_suite_index_entry[1]} filtered out.")
 
 
-    print(f"{failed_count} Failed, {passed_count} Passed")
+    logger.log(f"{failed_count} Failed, {passed_count} Passed")
+    if not failed_count:
+        logger.log("OK.")
 
 
 
