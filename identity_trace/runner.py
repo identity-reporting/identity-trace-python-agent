@@ -8,20 +8,22 @@ import sys
 import argparse
 from uuid import uuid4
 
-from .registry import get_cache_value, set_cache_value, Namespaces
+from .registry import get_cache_value, set_cache_value, Namespaces, delete_cache_value
 from .matcher import matchExecutionWithTestConfig, TestRunForTestSuite
 from .config import initialize_with_config_file
 from .logger import logger
 
 get_run_action = functools.partial(get_cache_value, Namespaces.run_file_action)
-register_tracer_callback = functools.partial(set_cache_value, Namespaces.tracer_callbacks)
+register_tracer_callback = functools.partial(
+    set_cache_value, Namespaces.tracer_callbacks)
 
 
 FUNCTION_ROOT_MAP = dict()
 FUNCTION_CONFIG_MAP = dict()
 FUNCTION_TRACE_MAP = dict()
 
-argument_parser = argparse.ArgumentParser(description='Process Run File Argument')
+argument_parser = argparse.ArgumentParser(
+    description='Process Run File Argument')
 argument_parser.add_argument("--runFile")
 argument_parser.add_argument("--runTests", action="store_true")
 argument_parser.add_argument("--fileName")
@@ -30,8 +32,6 @@ argument_parser.add_argument("--moduleName")
 argument_parser.add_argument("--name")
 argument_parser.add_argument("--reportURL")
 argument_parser.add_argument("--config")
-
-
 
 
 # 74588c94-9eee-4a89-8742-ae455dc29359
@@ -49,7 +49,8 @@ file_path = "{}/TestCase/".format(IDENTITY_CONFIG_FOLDER_NAME)
 if script_directory:
     file_path = script_directory + "/" + file_path
 
-def initialize(config_file_name = None):
+
+def initialize(config_file_name=None):
 
     args = argument_parser.parse_args()
 
@@ -58,7 +59,8 @@ def initialize(config_file_name = None):
     )
 
     if args.runFile:
-        logger.debug(f"Running python code with --runFile argument ({args.runFile}).")
+        logger.debug(
+            f"Running python code with --runFile argument ({args.runFile}).")
         return _execute_run_file(args.runFile)
     elif args.runTests:
         logger.debug("Running tests with --runTests argument.")
@@ -74,7 +76,6 @@ def initialize(config_file_name = None):
             test_suite_name=test_suite_name,
             report_url=report_url
         )
-    
 
 
 def _execute_run_file(run_file_id):
@@ -86,7 +87,8 @@ def _execute_run_file(run_file_id):
 
     run_functions_from_run_file_config(run_file_id, run_file_config)
     write_run_file_json(run_file_path, run_file_config)
-    
+
+
 def write_run_file_json(run_file_id, run_file_config):
 
     run_file_path = f"__identity__/{run_file_id}"
@@ -129,9 +131,9 @@ def read_run_file_json(run_file_id):
     try:
         run_file_config = json.loads(run_file_config_string)
     except:
-        raise Exception(f"Could not parse JSON config from run file. {str(run_file_config)}")
+        raise Exception(
+            f"Could not parse JSON config from run file. {str(run_file_config)}")
 
-    
     validate_run_file(run_file_config)
 
     return run_file_config
@@ -150,19 +152,18 @@ def run_functions_from_run_file_config(run_file_id, run_file_config):
             function_config["executed_function"] = trace_instance.serialize()
         except Exception as e:
             function_config["error"] = str(e)
-        
 
 
-def run_function_from_run_file(function_config = None):
+def run_function_from_run_file(function_config=None):
     '''
         Executed a function run configuration specified in the run file.
     '''
-    function_meta = function_config.get("function_meta", None)
+
     register_tracer_callback(
         "client_executed_function_finish",
         on_run_file_function_complete
     )
-    set_cache_value(Namespaces.client_function_callbacks, "runner", client_function_runner)
+
     # Register the current frame with config
     # Client function runner can find this config
     execution_id = function_config["execution_id"]
@@ -170,16 +171,23 @@ def run_function_from_run_file(function_config = None):
 
     FUNCTION_ROOT_MAP[current_frame] = execution_id
     FUNCTION_CONFIG_MAP[execution_id] = function_config
-    
-    if function_meta:
-        run_function_by_meta(function_config)
 
-    else:
-        run_function_by_code(function_config)
-    
+    set_cache_value(Namespaces.client_function_callbacks,
+                    "runner", client_function_runner)
+
+    try:
+        if function_config.get("function_meta", None):
+            run_function_by_meta(function_config)
+        elif function_config.get("code", None):
+            run_function_by_code(function_config)
+        else:
+            raise Exception(f"Invalid function config {function_config}.")
+    finally:
+        delete_cache_value(Namespaces.client_function_callbacks, "runner")
+
     if not FUNCTION_TRACE_MAP.get(execution_id, None):
         raise Exception("Function got executed but did not get traced.")
-    
+
     function_trace_instance = FUNCTION_TRACE_MAP.get(execution_id, None)
 
     del FUNCTION_ROOT_MAP[current_frame]
@@ -187,8 +195,6 @@ def run_function_from_run_file(function_config = None):
     del FUNCTION_TRACE_MAP[execution_id]
 
     return function_trace_instance
-        
-
 
 
 def run_function_by_meta(function_config):
@@ -202,9 +208,9 @@ def run_function_by_meta(function_config):
     file_name = function_meta["file_name"]
     function_name = function_meta["function_name"]
     input_to_pass = function_config["input_to_pass"]
-    
+
     logger.debug("Running function with meta.", function_meta)
-    # if the module is __main__ then module name should be the file name 
+    # if the module is __main__ then module name should be the file name
     # because for this file, it will be a module
     if module_name == "__main__":
 
@@ -240,32 +246,30 @@ def run_function_by_meta(function_config):
     thrown_exception = None
 
     try:
-        
+
         kw_args = input_to_pass[-1]
         args = input_to_pass[:-1]
-        
+
         logger.log(f"Running function with args({args}) kwargs({kw_args}).")
         function_to_run(*args, **kw_args)
 
     except Exception as e:
-            # If the function was not traced, it means that function didn't even
-            # execute or agent failed to run the function
-            thrown_exception = e
-            logger.error(e)
-            print(e)
+        # If the function was not traced, it means that function didn't even
+        # execute or agent failed to run the function
+        thrown_exception = e
+        logger.error(e)
+        print(e)
 
     if not FUNCTION_TRACE_MAP.get(function_config["execution_id"], None):
         if thrown_exception:
-                raise thrown_exception
-        
+            raise thrown_exception
+
         raise Exception((
             f"No trace recorded for the execution of {function_name}. "
             f"This can happen if the function is not decorated using @watch. "
             f"It can also happen because of internal error."
         ))
-        
-    
-    
+
     # remove tracer callback
     # remove_trace_callback_for_function_run(function_config)
 
@@ -286,26 +290,28 @@ def run_function_by_code(function_config):
     try:
         execute_code_string(code_to_run)
     except Exception as e:
-        
+
         thrown_exception = e
         print(e)
 
     if not FUNCTION_TRACE_MAP.get(function_config["execution_id"], None):
         if thrown_exception:
-                raise thrown_exception
-        
+            raise thrown_exception
+
         raise Exception((
             f"No trace recorded for the execution of code. "
             f"This can happen if the function is not decorated using @watch. "
             f"It can also happen because of internal error."
         ))
-        
+
     # finally:
     #     # remove tracer callback
     #     remove_trace_callback_for_function_run(function_config)
 
+
 def execute_code_string(code_string):
     exec(code_string)
+
 
 def validate_run_file(run_file_config):
     '''
@@ -317,20 +323,21 @@ def validate_run_file(run_file_config):
 
     # TODO: better error handling
     if not isinstance(run_file_config.get("functions_to_run"), list):
-        raise Exception("Run file does not invalid functions_to_run value. It should be a list of configurations.")
+        raise Exception(
+            "Run file does not invalid functions_to_run value. It should be a list of configurations.")
 
-    
     return run_file_config
 
 
 def register_trace_callback_for_function_run(function_config):
     ...
 
+
 def remove_trace_callback_for_function_run(function_config):
     ...
 
 
-def on_run_file_function_complete( 
+def on_run_file_function_complete(
     function_specific_config,
     client_executed_function_trace,
     function_frame
@@ -365,10 +372,10 @@ def on_run_file_function_complete(
     execution_id = function_config["execution_id"]
     FUNCTION_TRACE_MAP[execution_id] = client_executed_function_trace
 
-    
-
 
 __FUNCTION_CALL_COUNT_MAP__ = dict()
+
+
 def client_function_runner(client_executed_function_trace, decorated_client_function,  *args, **kwargs):
 
     function_detail = f"{client_executed_function_trace.name} from {client_executed_function_trace.module_name}"
@@ -398,7 +405,6 @@ def client_function_runner(client_executed_function_trace, decorated_client_func
             )
             root_function_trace = parent_function.test_run__root_function
             client_executed_function_trace.test_run__root_function = root_function_trace
-        
 
         # Get function call count with respect to root function
         # __FUNCTION_CALL_COUNT_MAP__[root function id] = dict (
@@ -406,9 +412,10 @@ def client_function_runner(client_executed_function_trace, decorated_client_func
         # )
         if not __FUNCTION_CALL_COUNT_MAP__.get(root_function_trace.id, None):
             __FUNCTION_CALL_COUNT_MAP__[root_function_trace.id] = dict()
-        
+
         key = f"{client_executed_function_trace.module_name}:{client_executed_function_trace.name}"
-        call_count = __FUNCTION_CALL_COUNT_MAP__[root_function_trace.id].get(key, 0) + 1
+        call_count = __FUNCTION_CALL_COUNT_MAP__[
+            root_function_trace.id].get(key, 0) + 1
         __FUNCTION_CALL_COUNT_MAP__[root_function_trace.id][key] = call_count
 
         # If mock is found for the call count, return mocked output
@@ -426,12 +433,13 @@ def client_function_runner(client_executed_function_trace, decorated_client_func
                 raise Exception(mock_for_function["errorToThrow"])
 
             return mock_for_function.get("output", None)
-    logger.debug(f"Could not find mocks for {function_detail}. Running original client function.")
+    logger.debug(
+        f"Could not find mocks for {function_detail}. Running original client function.")
     return decorated_client_function(*args, **kwargs)
 
-    
+
 def get_config_for_executed_client_function(client_executed_function_trace, frame):
-    
+
     if not client_executed_function_trace.parent_id:
         while frame:
             if FUNCTION_ROOT_MAP.get(frame, None):
@@ -439,7 +447,7 @@ def get_config_for_executed_client_function(client_executed_function_trace, fram
                 execution_id = FUNCTION_ROOT_MAP.get(frame)
                 function_config = FUNCTION_CONFIG_MAP.get(execution_id)
                 return function_config
-            
+
             frame = frame.f_back
     else:
         parent_instance = get_cache_value(
@@ -448,53 +456,47 @@ def get_config_for_executed_client_function(client_executed_function_trace, fram
 
         if not parent_instance:
             raise Exception("Parent ID set incorrectly.")
-        
-        execution_id = parent_instance.execution_context.get("execution_id", None)
+
+        execution_id = parent_instance.execution_context.get(
+            "execution_id", None)
 
         if not execution_id:
             raise Exception("Execution ID not set")
-        
+
         function_config = FUNCTION_CONFIG_MAP.get(execution_id, [None, None])
         return function_config
-    
+
     return None
-    
+
 
 def record_function_run_trace(execution_id):
     FUNCTION_TRACE_MAP[execution_id] = True
 
 
-
-
 def run_tests(
-        function_name = None,
-        module_name = None,
-        file_name = None,
+        function_name=None,
+        module_name=None,
+        file_name=None,
         test_suite_name=None,
-        report_url = None
+        report_url=None
 ):
 
     run_file_path = f"TestCase"
 
-
     test_suite_index = read_run_file_json(f"{run_file_path}/index.json")
-
 
     passed_count = 0
     failed_count = 0
 
-    
-
     for test_suite_index_entry in test_suite_index:
 
-        
         skip_test_suite = False
         logger.debug()
 
         if module_name and not (module_name in test_suite_index_entry[2]):
             logger.debug(f"Applying module name filter ({module_name}).")
             skip_test_suite = True
-        
+
         elif file_name and not (file_name in test_suite_index_entry[3]):
             logger.debug(f"Applying file name filter ({file_name}).")
             skip_test_suite = True
@@ -503,31 +505,30 @@ def run_tests(
             logger.debug(f"Applying name filter ({test_suite_name}).")
             skip_test_suite = True
 
-        
-        
-
         if not skip_test_suite:
-            
+
             logger.log(f"Running test {test_suite_index_entry[1]}.")
-            test_suite_json = read_run_file_json(f"{run_file_path}/{test_suite_index_entry[0]}.json")
-            
+            test_suite_json = read_run_file_json(
+                f"{run_file_path}/{test_suite_index_entry[0]}.json")
+
             for test_case in test_suite_json["tests"]:
-                
+
                 mocks = dict()
 
                 def visit(config):
-                    
+
                     if config.get("isMocked", None):
                         module_name = config["functionMeta"]["moduleName"]
                         function_name = config["functionMeta"]["name"]
                         key = f"{module_name}:{function_name}"
-                        
+
                         if not mocks.get(key):
                             mocks[key] = dict()
-                        
+
                         mocks[key][config["functionCallCount"]] = dict(
-                            errorToThrow = config.get("mockedErrorMessage", None),
-                            output = config.get("mockedOutput", None),
+                            errorToThrow=config.get(
+                                "mockedErrorMessage", None),
+                            output=config.get("mockedOutput", None),
                         )
                     else:
                         for child in config["children"]:
@@ -537,28 +538,29 @@ def run_tests(
                 visit(test_case["config"])
 
                 function_to_run = dict(
-                    function_meta = dict(
-                        module_name = test_case["config"]["functionMeta"]["moduleName"],
-                        file_name = test_case["config"]["functionMeta"]["fileName"],
-                        function_name = test_case["config"]["functionMeta"]["name"],
+                    function_meta=dict(
+                        module_name=test_case["config"]["functionMeta"]["moduleName"],
+                        file_name=test_case["config"]["functionMeta"]["fileName"],
+                        function_name=test_case["config"]["functionMeta"]["name"],
                     ),
-                    execution_id = str(uuid4()),
-                    input_to_pass = test_case["inputToPass"],
-                    action = "test_run",
-                    context = dict(
-                        mocks = mocks,
-                        test_run = dict(
-                            testSuiteID = test_suite_json["id"],
-                            testCaseID = test_case["id"]
+                    execution_id=str(uuid4()),
+                    input_to_pass=test_case["inputToPass"],
+                    action="test_run",
+                    context=dict(
+                        mocks=mocks,
+                        test_run=dict(
+                            testSuiteID=test_suite_json["id"],
+                            testCaseID=test_case["id"]
                         )
                     )
                 )
                 try:
-                    trace_instance = run_function_from_run_file(function_to_run)
+                    trace_instance = run_function_from_run_file(
+                        function_to_run)
                     test_case["executedFunction"] = trace_instance.serialize()
                 except Exception as e:
                     test_case["error"] = str(e)
-            
+
             matcherResult = matchExecutionWithTestConfig(TestRunForTestSuite(
                 name=test_suite_json["name"],
                 description=test_suite_json["description"],
@@ -577,10 +579,12 @@ def run_tests(
 
             if report_url:
                 try:
-                    logger.debug(f"Sending test result to endpoint {report_url}.")
-                    res = requests.post(report_url, json=matcherResult.serialize(), timeout=0.001)
+                    logger.debug(
+                        f"Sending test result to endpoint {report_url}.")
+                    res = requests.post(
+                        report_url, json=matcherResult.serialize(), timeout=0.001)
                     res.raise_for_status()
-                    
+
                 except Exception as e:
                     logger.error(
                         f"Failed to send test result to {report_url}. "
@@ -592,15 +596,14 @@ def run_tests(
 
             # Calculate the execution time
             execution_time = end_time - start_time
-            logger.log(f"{matcherResult.testCaseName} {execution_time}ms. {'Passed.' if matcherResult.successful else 'Failed.'}")
+            logger.log(
+                f"{matcherResult.testCaseName} {execution_time}ms. {'Passed.' if matcherResult.successful else 'Failed.'}")
         else:
             logger.debug(f"{test_suite_index_entry[1]} filtered out.")
-
 
     logger.log(f"{failed_count} Failed, {passed_count} Passed")
     if not failed_count:
         logger.log("OK.")
-
 
 
 def get_mocks_for_function(function_config, module_name, function_name, call_count):
@@ -612,7 +615,7 @@ def get_mocks_for_function(function_config, module_name, function_name, call_cou
             return None
 
         mocks_for_function = mocks.get(f"{module_name}:{function_name}", None)
-        
+
         if mocks_for_function and isinstance(mocks_for_function, dict):
             mock_value = mocks_for_function.get(str(call_count), None)
 
