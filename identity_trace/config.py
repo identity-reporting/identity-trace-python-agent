@@ -6,6 +6,8 @@ import importlib
 import inspect
 from .decorator import _internal_watch
 
+from .logger import logger
+
 script_path = sys.argv[0]
 
 # Get the directory path where the script was executed from
@@ -24,10 +26,14 @@ def initialize_with_config_file(file_name = None):
 def read_config_file(config_file_name = None):
     identity_config_file_name = config_file_name or "identity_config.json"
 
+    
+
     file_path = identity_config_file_name
     # Read the run file
     if script_directory:
         file_path = f"{script_directory}/{file_path}"
+
+    logger.debug(f"Reading user config file {identity_config_file_name}.")
 
     file = None
     try:
@@ -70,6 +76,7 @@ def process_user_config(user_config):
     for module_name, value in user_config["modules"].items():
 
         try:
+            logger.debug(f"Importing module {module_name} to decorate functions.")
             module = importlib.import_module(module_name)
             file_name = getattr(module, "__file__")
             package_name = getattr(module, "__package__")
@@ -84,6 +91,7 @@ def process_user_config(user_config):
             # import module name
             # find every callable
             # wrap it
+            logger.debug(f"decorating all functions in {module_name}.")
             for name, obj in inspect.getmembers(module):
                 if inspect.isfunction(obj) or inspect.isclass(obj):
                     decorated_function = wrap_function(
@@ -127,6 +135,7 @@ def process_user_config(user_config):
 
 
 def wrap_function(client_function, name, description, config, module_name, file_name, package_name):
+    logger.debug(f"Wrapping {name} in module {module_name}")
     decorator = _internal_watch(
         name=name,
         description=description,

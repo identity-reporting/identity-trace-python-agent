@@ -29,7 +29,6 @@ def watch(name = None, description = None, config = None):
     file_name = caller_module_frame.f_globals['__file__']
     module_name = caller_module_frame.f_globals['__name__']
     
-
     # Return the decorator while providing metadata
     return _internal_watch(
         name,
