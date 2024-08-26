@@ -40,4 +40,4 @@ class Logger:
         print(str(message), *args)
     
 
-logger = Logger(log_level=1)
+logger = Logger(log_level=2)
