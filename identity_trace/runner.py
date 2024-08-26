@@ -2,15 +2,10 @@ import importlib
 import inspect
 import json
 import os
-import requests
 import functools
 import sys
-import argparse
-from uuid import uuid4
 
 from .registry import get_cache_value, set_cache_value, Namespaces, delete_cache_value
-from .matcher import matchExecutionWithTestConfig, TestRunForTestSuite
-from .config import initialize_with_config_file
 from .logger import logger
 
 get_run_action = functools.partial(get_cache_value, Namespaces.run_file_action)
@@ -21,17 +16,6 @@ register_tracer_callback = functools.partial(
 FUNCTION_ROOT_MAP = dict()
 FUNCTION_CONFIG_MAP = dict()
 FUNCTION_TRACE_MAP = dict()
-
-argument_parser = argparse.ArgumentParser(
-    description='Process Run File Argument')
-argument_parser.add_argument("--runFile")
-argument_parser.add_argument("--runTests", action="store_true")
-argument_parser.add_argument("--fileName")
-argument_parser.add_argument("--functionName")
-argument_parser.add_argument("--moduleName")
-argument_parser.add_argument("--name")
-argument_parser.add_argument("--reportURL")
-argument_parser.add_argument("--config")
 
 
 # 74588c94-9eee-4a89-8742-ae455dc29359
@@ -50,35 +34,7 @@ if script_directory:
     file_path = script_directory + "/" + file_path
 
 
-def initialize(config_file_name=None):
-
-    args = argument_parser.parse_args()
-
-    initialize_with_config_file(
-        config_file_name or args.config or None
-    )
-
-    if args.runFile:
-        logger.debug(
-            f"Running python code with --runFile argument ({args.runFile}).")
-        return _execute_run_file(args.runFile)
-    elif args.runTests:
-        logger.debug("Running tests with --runTests argument.")
-        module_name = args.moduleName or None
-        file_name = args.fileName or None
-        function_name = args.functionName or None
-        test_suite_name = args.name or None
-        report_url = args.reportURL or None
-        run_tests(
-            function_name=function_name,
-            module_name=module_name,
-            file_name=file_name,
-            test_suite_name=test_suite_name,
-            report_url=report_url
-        )
-
-
-def _execute_run_file(run_file_id):
+def execute_run_file(run_file_id):
     '''
         Reads run file, validates the JSON and run every function specified in the run file.
     '''
@@ -471,139 +427,6 @@ def get_config_for_executed_client_function(client_executed_function_trace, fram
 
 def record_function_run_trace(execution_id):
     FUNCTION_TRACE_MAP[execution_id] = True
-
-
-def run_tests(
-        function_name=None,
-        module_name=None,
-        file_name=None,
-        test_suite_name=None,
-        report_url=None
-):
-
-    run_file_path = f"TestCase"
-
-    test_suite_index = read_run_file_json(f"{run_file_path}/index.json")
-
-    passed_count = 0
-    failed_count = 0
-
-    for test_suite_index_entry in test_suite_index:
-
-        skip_test_suite = False
-        logger.debug()
-
-        if module_name and not (module_name in test_suite_index_entry[2]):
-            logger.debug(f"Applying module name filter ({module_name}).")
-            skip_test_suite = True
-
-        elif file_name and not (file_name in test_suite_index_entry[3]):
-            logger.debug(f"Applying file name filter ({file_name}).")
-            skip_test_suite = True
-
-        elif test_suite_name and not (test_suite_name in test_suite_index_entry[1]):
-            logger.debug(f"Applying name filter ({test_suite_name}).")
-            skip_test_suite = True
-
-        if not skip_test_suite:
-
-            logger.log(f"Running test {test_suite_index_entry[1]}.")
-            test_suite_json = read_run_file_json(
-                f"{run_file_path}/{test_suite_index_entry[0]}.json")
-
-            for test_case in test_suite_json["tests"]:
-
-                mocks = dict()
-
-                def visit(config):
-
-                    if config.get("isMocked", None):
-                        module_name = config["functionMeta"]["moduleName"]
-                        function_name = config["functionMeta"]["name"]
-                        key = f"{module_name}:{function_name}"
-
-                        if not mocks.get(key):
-                            mocks[key] = dict()
-
-                        mocks[key][config["functionCallCount"]] = dict(
-                            errorToThrow=config.get(
-                                "mockedErrorMessage", None),
-                            output=config.get("mockedOutput", None),
-                        )
-                    else:
-                        for child in config["children"]:
-                            visit(child)
-
-                # create mocks
-                visit(test_case["config"])
-
-                function_to_run = dict(
-                    function_meta=dict(
-                        module_name=test_case["config"]["functionMeta"]["moduleName"],
-                        file_name=test_case["config"]["functionMeta"]["fileName"],
-                        function_name=test_case["config"]["functionMeta"]["name"],
-                    ),
-                    execution_id=str(uuid4()),
-                    input_to_pass=test_case["inputToPass"],
-                    action="test_run",
-                    context=dict(
-                        mocks=mocks,
-                        test_run=dict(
-                            testSuiteID=test_suite_json["id"],
-                            testCaseID=test_case["id"]
-                        )
-                    )
-                )
-                try:
-                    trace_instance = run_function_from_run_file(
-                        function_to_run)
-                    test_case["executedFunction"] = trace_instance.serialize()
-                except Exception as e:
-                    test_case["error"] = str(e)
-
-            matcherResult = matchExecutionWithTestConfig(TestRunForTestSuite(
-                name=test_suite_json["name"],
-                description=test_suite_json["description"],
-                functionMeta=test_suite_json["functionMeta"],
-                testSuiteID=test_suite_json["id"],
-                tests=test_suite_json["tests"]
-            ))
-            if matcherResult.successful:
-                passed_count = passed_count + 1
-            else:
-                failed_count = failed_count + 1
-
-            import time
-            # Start the timer
-            start_time = time.time()
-
-            if report_url:
-                try:
-                    logger.debug(
-                        f"Sending test result to endpoint {report_url}.")
-                    res = requests.post(
-                        report_url, json=matcherResult.serialize(), timeout=0.001)
-                    res.raise_for_status()
-
-                except Exception as e:
-                    logger.error(
-                        f"Failed to send test result to {report_url}. "
-                        f"{e}"
-                    )
-
-            # Stop the timer
-            end_time = time.time()
-
-            # Calculate the execution time
-            execution_time = end_time - start_time
-            logger.log(
-                f"{matcherResult.testCaseName} {execution_time}ms. {'Passed.' if matcherResult.successful else 'Failed.'}")
-        else:
-            logger.debug(f"{test_suite_index_entry[1]} filtered out.")
-
-    logger.log(f"{failed_count} Failed, {passed_count} Passed")
-    if not failed_count:
-        logger.log("OK.")
 
 
 def get_mocks_for_function(function_config, module_name, function_name, call_count):
