@@ -39,11 +39,9 @@ def initialize(config_file_name=None):
         logger.debug("Running tests with --runTests argument.")
         module_name = args.moduleName or None
         file_name = args.fileName or None
-        function_name = args.functionName or None
         test_suite_name = args.name or None
         report_url = args.reportURL or None
         run_tests(
-            function_name=function_name,
             module_name=module_name,
             file_name=file_name,
             test_suite_name=test_suite_name,

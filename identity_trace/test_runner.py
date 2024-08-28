@@ -8,7 +8,6 @@ from .runner import run_function_from_run_file
 
 
 def run_tests(
-        function_name=None,
         module_name=None,
         file_name=None,
         test_suite_name=None,
@@ -18,7 +17,8 @@ def run_tests(
     run_file_path = f"TestCase"
 
     test_suite_index = read_json_file_in_identity_folder(
-        f"{run_file_path}/index.json")
+        f"{run_file_path}/index.json"
+    )
 
     passed_count = 0
     failed_count = 0
@@ -109,7 +109,7 @@ def run_test_from_test_suite_json(test_suite_json):
                 file_name=test_case["config"]["functionMeta"]["fileName"],
                 function_name=test_case["config"]["functionMeta"]["name"],
             ),
-            execution_id=str(uuid4()),
+            execution_id=get_execution_id_for_test_case(),
             input_to_pass=test_case["inputToPass"],
             action="test_run",
             context=dict(
@@ -138,6 +138,8 @@ def run_test_from_test_suite_json(test_suite_json):
 
     return matcherResult
 
+def get_execution_id_for_test_case():
+    return str(uuid4())
 
 def send_test_report_to_url(report_url, matcherResult):
     try:

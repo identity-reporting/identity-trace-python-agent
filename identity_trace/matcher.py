@@ -123,9 +123,12 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
         assertionResult = {}
 
         if 'expectedErrorMessage' in assertion:
-            thrownError = executedFunction.get('error')
+            thrownError = executedFunction.get('error', None)
             conf = assertion['expectedErrorMessage']
-            if conf['operator'] == "equals" and thrownError != conf['message']:
+
+            if not thrownError:
+                failureReasons.append("Function was expected to throw an error.")
+            elif conf['operator'] == "equals" and thrownError != conf['message']:
                 failureReasons.append("Error message does not match.")
             elif conf['operator'] == "contains" and (thrownError is None or conf['message'] not in thrownError):
                 failureReasons.append(f'Error message does not contain "{conf["message"]}"')
@@ -212,6 +215,8 @@ def objectContains(src: Any, target: Any) -> bool:
             return False
         return all(objectIsEqual(item, target[i]) for i, item in enumerate(src))
     elif isinstance(src, dict):
-        return all(objectIsEqual(src[k], target.get(k)) for k in src)
+        if(isinstance(target, dict)):
+            return all(objectIsEqual(src[k], target.get(k)) for k in src)
+        return False
     else:
         return src == target

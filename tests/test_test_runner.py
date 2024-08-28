@@ -1,203 +1,444 @@
-import uuid
-from unittest import mock
+from unittest.mock import patch
 from .utils import TestCase
-from identity_trace.test_runner import client_function_runner
-from identity_trace.wrappers import ClientExecutedFunctionTrace
 
-import identity_trace.test_runner as test_runner_module
+from identity_trace.test_runner import run_tests, run_test_from_test_suite_json, TestRunForTestSuite
 
 
-def reset_call_count():
-    test_runner_module.__function_call_count_map__ = dict()
+def test_file_read_side_effect(file_name):
+    if "/index.json" in file_name:
+        return []
 
-class client_function_runner_tests(TestCase):
+    return {}
 
 
-    def test_returns_mock_output_if_present(self):
+class run_tests_tests(TestCase):
+
+    @patch("identity_trace.test_runner.read_json_file_in_identity_folder")
+    def test_reads_index_file(self, read_json_file_in_identity_folder_mock):
+        read_json_file_in_identity_folder_mock.return_value = []
+
+        run_tests()
+
+        read_json_file_in_identity_folder_mock.assert_called_once_with(
+            "TestCase/index.json")
+
+    @patch("identity_trace.test_runner.run_test_from_test_suite_json")
+    @patch("identity_trace.test_runner.read_json_file_in_identity_folder")
+    def test_filters_by_module_name(
+        self, read_json_file_in_identity_folder_mock, run_test_from_test_suite_json_mock
+    ):
         '''
-            Test if mock is present, then runner should return mocked output
+            Check whether the filter by module name works
         '''
+        read_json_file_in_identity_folder_mock.return_value = [
+            ["some_id", "name", "module1", "filename"],
+            ["some_id", "name", "module1", "filename"],
+            ["some_id", "name", "module1", "filename"],
+            ["some_id4", "name", "anotherMod", "filename"],
+        ]
 
-        mock_output = str(uuid.uuid4())
+        class Matcher:
+            ...
+        matcher_result = Matcher()
+        matcher_result.successful = True
+        matcher_result.testCaseName = "name"
+        run_test_from_test_suite_json_mock.return_value = matcher_result
 
-        mock_config = dict(
-            context = dict(
-                test_run = dict(
-                    mocks = {
-                        "some_module:some_func": {
-                            "1" : {
-                                "output": mock_output
-                            }
-                        }
-                    }
+        run_tests(
+            module_name="another"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_args_list[0][0][0],
+            "TestCase/index.json"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_args_list[1][0][0],
+            "TestCase/some_id4.json"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_count,
+            2
+        )
+
+    @patch("identity_trace.test_runner.run_test_from_test_suite_json")
+    @patch("identity_trace.test_runner.read_json_file_in_identity_folder")
+    def test_filters_by_file_name(
+        self, read_json_file_in_identity_folder_mock, run_test_from_test_suite_json_mock
+    ):
+        '''
+            Check whether the filter by file name works
+        '''
+        read_json_file_in_identity_folder_mock.return_value = [
+            ["some_id", "name", "module1", "filename"],
+            ["some_id", "name", "module1", "filename"],
+            ["some_id3", "name", "module1", "some_di"],
+            ["some_id4", "name", "anotherMod", "some_fi"],
+        ]
+
+        class Matcher:
+            ...
+        matcher_result = Matcher()
+        matcher_result.successful = True
+        matcher_result.testCaseName = "name"
+        run_test_from_test_suite_json_mock.return_value = matcher_result
+
+        run_tests(
+            file_name="some"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_args_list[0][0][0],
+            "TestCase/index.json"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_args_list[1][0][0],
+            "TestCase/some_id3.json"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_args_list[2][0][0],
+            "TestCase/some_id4.json"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_count,
+            3
+        )
+
+    @patch("identity_trace.test_runner.run_test_from_test_suite_json")
+    @patch("identity_trace.test_runner.read_json_file_in_identity_folder")
+    def test_filters_by_test_suite_name(
+        self, read_json_file_in_identity_folder_mock, run_test_from_test_suite_json_mock
+    ):
+        '''
+            Check whether the filter by file name works
+        '''
+        read_json_file_in_identity_folder_mock.return_value = [
+            ["some_id", "name1", "module1", "filename"],
+            ["some_id", "name1", "module1", "filename"],
+            ["some_id3", "another_name1", "module1", "some_di"],
+            ["some_id4", "another_name2", "anotherMod", "some_fi"],
+        ]
+
+        class Matcher:
+            ...
+        matcher_result = Matcher()
+        matcher_result.successful = True
+        matcher_result.testCaseName = "name"
+        run_test_from_test_suite_json_mock.return_value = matcher_result
+
+        run_tests(
+            test_suite_name="another"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_args_list[0][0][0],
+            "TestCase/index.json"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_args_list[1][0][0],
+            "TestCase/some_id3.json"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_args_list[2][0][0],
+            "TestCase/some_id4.json"
+        )
+        self.assertEqual(
+            read_json_file_in_identity_folder_mock.call_count,
+            3
+        )
+
+
+class test_run_test_from_test_suite_json(TestCase):
+
+    @patch("identity_trace.test_runner.get_execution_id_for_test_case")
+    @patch("identity_trace.test_runner.matchExecutionWithTestConfig")
+    @patch("identity_trace.test_runner.run_function_from_run_file")
+    def test_passes_correct_meta_to_run_function(
+        self, run_function_from_run_file_mock, matchExecutionWithTestConfig_mock,
+        get_execution_id_for_test_case_mock
+    ):
+
+        self.maxDiff = None
+        test_suite_mock = dict(
+            id="test_id_1",
+            name="test_suite_1",
+            description="some_desc",
+            functionMeta=dict(
+                moduleName="module_1",
+                fileName="fileName1",
+                name="some"
+            ),
+            tests=[
+                dict(
+                    id="test_case_id_1",
+                    config=dict(
+                        functionMeta=dict(
+                            moduleName="module_1",
+                            fileName="fileName1",
+                            name="some"
+                        ),
+                        children=[]
+                    ),
+                    inputToPass=[1, dict(some=1)]
+                ),
+                dict(
+                    id="test_case_id_2",
+                    config=dict(
+                        functionMeta=dict(
+                            moduleName="module_2",
+                            fileName="fileName2",
+                            name="some2"
+                        ),
+                        children=[]
+                    ),
+                    inputToPass=[2, dict(some2=2)]
+                )
+            ]
+        )
+
+        test_meta_mock = dict(
+            function_meta=dict(
+                module_name="module_1",
+                file_name="fileName1",
+                function_name="some",
+            ),
+            input_to_pass=[1, dict(some=1)],
+            action="test_run",
+            execution_id="execution_id",
+            context=dict(
+                mocks=dict(),
+                test_run=dict(
+                    testSuiteID="test_id_1",
+                    testCaseID="test_case_id_1"
+                )
+            )
+        )
+        test_meta_mock2 = dict(
+            function_meta=dict(
+                module_name="module_2",
+                file_name="fileName2",
+                function_name="some2",
+            ),
+            input_to_pass=[2, dict(some2=2)],
+            action="test_run",
+            execution_id="execution_id",
+            context=dict(
+                mocks=dict(),
+                test_run=dict(
+                    testSuiteID="test_id_1",
+                    testCaseID="test_case_id_2"
                 )
             )
         )
 
-        mock_trace = ClientExecutedFunctionTrace()
-        mock_trace.module_name = "some_module"
-        mock_trace.name = "some_func"
+        get_execution_id_for_test_case_mock.return_value = "execution_id"
+        run_test_from_test_suite_json(test_suite_mock)
+        self.assertEqual(
+            run_function_from_run_file_mock.call_args_list[0][0][0],
+            test_meta_mock
+        )
+        self.assertEqual(
+            run_function_from_run_file_mock.call_args_list[1][0][0],
+            test_meta_mock2
+        )
+        self.assertEqual(run_function_from_run_file_mock.call_count, 2)
 
-        reset_call_count()
-        res = client_function_runner(
-            mock_config,
-            mock_trace,
-            None
+        self.assertEqual(
+            matchExecutionWithTestConfig_mock.call_args[0][0].__dict__,
+            TestRunForTestSuite(
+                name=test_suite_mock["name"],
+                description=test_suite_mock["description"],
+                functionMeta=test_suite_mock["functionMeta"],
+                testSuiteID=test_suite_mock["id"],
+                tests=test_suite_mock["tests"]
+            ).__dict__
+        )
+        self.assertEqual(matchExecutionWithTestConfig_mock.call_count, 1)
+
+    @patch("identity_trace.test_runner.get_execution_id_for_test_case")
+    @patch("identity_trace.test_runner.matchExecutionWithTestConfig")
+    @patch("identity_trace.test_runner.run_function_from_run_file")
+    def test_passes_mocks(
+        self, run_function_from_run_file_mock, matchExecutionWithTestConfig_mock,
+        get_execution_id_for_test_case_mock
+    ):
+
+        self.maxDiff = None
+        test_suite_mock = dict(
+            id="test_id_1",
+            name="test_suite_1",
+            description="some_desc",
+            functionMeta=dict(
+                moduleName="module_1",
+                fileName="fileName1",
+                name="some"
+            ),
+            tests=[
+                dict(
+                    id="test_case_id_1",
+                    config=dict(
+                        functionMeta=dict(
+                            moduleName="module_1",
+                            fileName="fileName1",
+                            name="some"
+                        ),
+                        children=[],
+                        isMocked=True,
+                        mockedErrorMessage=None,
+                        mockedOutput="mocked_output_1",
+                        functionCallCount=1
+                    ),
+                    inputToPass=[1, dict(some=1)],
+                )
+            ]
         )
 
-        self.assertEqual(res, mock_output, "Should return mocked output.")
-    
-
-    def test_mocked_error(self):
-        '''
-            Test if mock is present, then runner should throw mocked error
-        '''
-
-        mocked_error = str(uuid.uuid4())
-
-        mock_config = dict(
-            context = dict(
-                test_run = dict(
-                    mocks = {
-                        "some_module:some_func": {
-                            "1" : {
-                                "errorToThrow": mocked_error
-                            }
-                        }
+        test_meta_mock = dict(
+            function_meta=dict(
+                module_name="module_1",
+                file_name="fileName1",
+                function_name="some",
+            ),
+            input_to_pass=[1, dict(some=1)],
+            action="test_run",
+            execution_id="execution_id",
+            context=dict(
+                mocks={
+                    "module_1:some": {
+                        1: dict(
+                            errorToThrow=None,
+                            output="mocked_output_1"
+                        )
                     }
+                },
+                test_run=dict(
+                    testSuiteID="test_id_1",
+                    testCaseID="test_case_id_1"
                 )
             )
         )
 
-        mock_trace = ClientExecutedFunctionTrace()
-        mock_trace.module_name = "some_module"
-        mock_trace.name = "some_func"
-        reset_call_count()
-
-        with self.assertRaises(Exception) as exception:
-
-            client_function_runner(
-                mock_config,
-                mock_trace,
-                None
-            )
-
-        self.assert_exception_matches(
-            Exception(mocked_error),
-            exception.exception
+        get_execution_id_for_test_case_mock.return_value = "execution_id"
+        run_test_from_test_suite_json(test_suite_mock)
+        self.assertEqual(
+            run_function_from_run_file_mock.call_args_list[0][0][0],
+            test_meta_mock
         )
-    
+        self.assertEqual(run_function_from_run_file_mock.call_count, 1)
 
-    def test_calls_client_function_if_mock_not_present(self):
-        '''
-            Test if mock is not present, then runner should call the client function with
-            provided args
-        '''
+        self.assertEqual(
+            matchExecutionWithTestConfig_mock.call_args[0][0].__dict__,
+            TestRunForTestSuite(
+                name=test_suite_mock["name"],
+                description=test_suite_mock["description"],
+                functionMeta=test_suite_mock["functionMeta"],
+                testSuiteID=test_suite_mock["id"],
+                tests=test_suite_mock["tests"]
+            ).__dict__
+        )
+        self.assertEqual(matchExecutionWithTestConfig_mock.call_count, 1)
 
-        mocked_client_output = str(uuid.uuid4())
+    @patch("identity_trace.test_runner.get_execution_id_for_test_case")
+    @patch("identity_trace.test_runner.matchExecutionWithTestConfig")
+    @patch("identity_trace.test_runner.run_function_from_run_file")
+    def test_nested_mocks(
+        self, run_function_from_run_file_mock, matchExecutionWithTestConfig_mock,
+        get_execution_id_for_test_case_mock
+    ):
 
-        mocked_client_function = mock.Mock()
-        mocked_client_function.return_value = mocked_client_output
+        self.maxDiff = None
+        test_suite_mock = dict(
+            id="test_id_1",
+            name="test_suite_1",
+            description="some_desc",
+            functionMeta=dict(
+                moduleName="module_1",
+                fileName="fileName1",
+                name="some"
+            ),
+            tests=[
+                dict(
+                    id="test_case_id_1",
+                    config=dict(
+                        functionMeta=dict(
+                            moduleName="module_1",
+                            fileName="fileName1",
+                            name="some"
+                        ),
+                        children=[
+                            dict(
+                                functionMeta=dict(
+                                    moduleName="module_2",
+                                    fileName="fileName2",
+                                    name="som2"
+                                ),
+                                isMocked=True,
+                                mockedErrorMessage=None,
+                                mockedOutput="mocked_output_2",
+                                functionCallCount=1
+                            ),
+                            dict(
+                                functionMeta=dict(
+                                    moduleName="module_3",
+                                    fileName="fileName3",
+                                    name="som3"
+                                ),
+                                isMocked=True,
+                                mockedErrorMessage="Some Error",
+                                mockedOutput=None,
+                                functionCallCount=1
+                            )
+                        ],
+                    ),
+                    inputToPass=[1, dict(some=1)],
+                )
+            ]
+        )
 
-
-        mock_trace = ClientExecutedFunctionTrace()
-        mock_trace.module_name = "some_module"
-        mock_trace.name = "some_func"
-
-        mock_config = dict(
-            context = dict(
-                test_run = dict(
-                    mocks = {
-                        "some_module:some_unknown_func": {
-                            "1" : {
-                                "errorToThrow": "somme"
-                            }
-                        }
+        test_meta_mock = dict(
+            function_meta=dict(
+                module_name="module_1",
+                file_name="fileName1",
+                function_name="some",
+            ),
+            input_to_pass=[1, dict(some=1)],
+            action="test_run",
+            execution_id="execution_id",
+            context=dict(
+                mocks={
+                    "module_2:som2": {
+                        1: dict(
+                            errorToThrow=None,
+                            output="mocked_output_2"
+                        )
+                    },
+                    "module_3:som3": {
+                        1: dict(
+                            errorToThrow="Some Error",
+                            output=None
+                        )
                     }
+                },
+                test_run=dict(
+                    testSuiteID="test_id_1",
+                    testCaseID="test_case_id_1"
                 )
             )
         )
 
-        # calls client function with no args
-        res = client_function_runner(
-            mock_config,
-            mock_trace,
-            mocked_client_function
+        get_execution_id_for_test_case_mock.return_value = "execution_id"
+        run_test_from_test_suite_json(test_suite_mock)
+        self.assertEqual(
+            run_function_from_run_file_mock.call_args_list[0][0][0],
+            test_meta_mock
         )
+        self.assertEqual(run_function_from_run_file_mock.call_count, 1)
 
-        self.assertEqual(res, mocked_client_output)
-        mocked_client_function.assert_called_once_with()
-
-        # calls client function with positional args
-        res = client_function_runner(
-            mock_config,
-            mock_trace,
-            mocked_client_function,
-            10
+        self.assertEqual(
+            matchExecutionWithTestConfig_mock.call_args[0][0].__dict__,
+            TestRunForTestSuite(
+                name=test_suite_mock["name"],
+                description=test_suite_mock["description"],
+                functionMeta=test_suite_mock["functionMeta"],
+                testSuiteID=test_suite_mock["id"],
+                tests=test_suite_mock["tests"]
+            ).__dict__
         )
-
-        self.assertEqual(res, mocked_client_output)
-        mocked_client_function.assert_called_with(10)
-
-        # calls client function with positional and named args
-        res = client_function_runner(
-            mock_config,
-            mock_trace,
-            mocked_client_function,
-            10, some=10
-        )
-
-        self.assertEqual(res, mocked_client_output)
-        mocked_client_function.assert_called_with(10, some=10)
-        
-
-    def test_mocks_correct_function_call_number(self):
-
-        mocked_client_output = str(uuid.uuid4())
-
-        def mocked_client_function(*args, **kwargs):
-            return mocked_client_output
-        
-        mock_output = str(uuid.uuid4())
-
-        mock_config = dict(
-            context = dict(
-                test_run = dict(
-                    mocks = {
-                        "some_module:some_func": {
-                            "3" : {
-                                "output": mock_output
-                            }
-                        }
-                    }
-                )
-            )
-        )
-
-        mock_trace = ClientExecutedFunctionTrace()
-        mock_trace.module_name = "some_module"
-        mock_trace.name = "some_func"
-        reset_call_count()
-        
-        res = client_function_runner(
-            mock_config,
-            mock_trace,
-            mocked_client_function
-        )
-        self.assertEqual(res, mocked_client_output, "Should run client function output for first call")
-
-        res = client_function_runner(
-            mock_config,
-            mock_trace,
-            mocked_client_function
-        )
-        self.assertEqual(res, mocked_client_output, "Should run client function output for second call")
-
-        res = client_function_runner(
-            mock_config,
-            mock_trace,
-            mocked_client_function
-        )
-        self.assertEqual(res, mock_output, "Should run mocked output for third call")
-
-        
+        self.assertEqual(matchExecutionWithTestConfig_mock.call_count, 1)
