@@ -17,6 +17,7 @@ argument_parser.add_argument("--moduleName")
 argument_parser.add_argument("--name")
 argument_parser.add_argument("--reportURL")
 argument_parser.add_argument("--config")
+argument_parser.add_argument("--testSuiteID")
 
 
 def _init():
@@ -41,11 +42,13 @@ def initialize(config_file_name=None):
         file_name = args.fileName or None
         test_suite_name = args.name or None
         report_url = args.reportURL or None
+        test_suite_id = args.testSuiteID or None
         run_tests(
             module_name=module_name,
             file_name=file_name,
             test_suite_name=test_suite_name,
-            report_url=report_url
+            report_url=report_url,
+            test_suite_id=test_suite_id
         )
 
 

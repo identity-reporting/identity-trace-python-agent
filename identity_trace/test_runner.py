@@ -8,6 +8,7 @@ from .runner import run_function_from_run_file
 
 
 def run_tests(
+        test_suite_id = None,
         module_name=None,
         file_name=None,
         test_suite_name=None,
@@ -27,9 +28,10 @@ def run_tests(
 
         skip_test_suite = False
 
-        if module_name and not (module_name in test_suite_index_entry[2]):
+        if test_suite_id and test_suite_index_entry[0] != test_suite_id:
             skip_test_suite = True
-
+        elif module_name and not (module_name in test_suite_index_entry[2]):
+            skip_test_suite = True
         elif file_name and not (file_name in test_suite_index_entry[3]):
             skip_test_suite = True
 
