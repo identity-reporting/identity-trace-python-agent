@@ -5,6 +5,7 @@ import inspect
 import time
 import uuid
 import functools
+import traceback
 
 from .registry import get_cache_value, Namespaces
 
@@ -36,6 +37,7 @@ class ClientExecutedFunctionTrace:
     children = None
 
     execution_context = None
+    stack_trace = None
 
 
     def __init__(self) -> None:
@@ -64,8 +66,10 @@ class ClientExecutedFunctionTrace:
             parent_ID=self.parent_id,
             executedSuccessfully=self.executed_successfully,
             error=self.error,
+            stackTrace=self.stack_trace,
             startTime=self.start_time,
             endTime=self.end_time,
+            totalTime = float(self.end_time) - float(self.start_time),
             children = [f.serialize() for f in self.children]
         )
 
@@ -134,16 +138,17 @@ def general_wrapper(
             # Let the runner handle the client function call
             client_function_runner = get_client_function_runner()
             if client_function_runner:
-                client_executed_function_trace.start_time = int(time.time() * 1000)
+                client_executed_function_trace.start_time = float(time.time() * 1000)
                 output = client_function_runner(client_executed_function_trace, decorated_client_function,  *args, **kwargs)
             else:
-                client_executed_function_trace.start_time = int(time.time() * 1000)
+                client_executed_function_trace.start_time = float(time.time() * 1000)
                 output = decorated_client_function(*args, **kwargs)
             
-            client_executed_function_trace.end_time = int(time.time() * 1000)
+            client_executed_function_trace.end_time = float(time.time() * 1000)
             client_executed_function_trace.executed_successfully = True
         except Exception as e:
-            client_executed_function_trace.end_time = int(time.time() * 1000)
+            client_executed_function_trace.end_time = float(time.time() * 1000)
+            client_executed_function_trace.stack_trace = traceback.format_tb(e.__traceback__)
             client_thrown_error = e
             client_executed_function_trace.error = str(e)
             client_executed_function_trace.executed_successfully = False
