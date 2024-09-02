@@ -7,6 +7,7 @@ from .registry import (
     delete_cache_value,
     get_cache_value, Namespaces
 )
+from .logger import logger
 
 
 register_frame = functools.partial(set_cache_value, Namespaces.client_function_wrapper_call_frame)
@@ -41,8 +42,8 @@ def general_preprocessing_tracer(
         @param function_input: Client function's input in the for of array. Last element in 
         the array will be all the name args (**kwargs). [*args, kwargs: dict]
     '''
+    logger.debug(f"Started pre processing for {client_executed_function_trace.name}")
     copy_input = function_specific_config["copy_input"]
-    
     input_serializer = function_specific_config["input_serializer"]
 
     # Copy input
@@ -51,6 +52,7 @@ def general_preprocessing_tracer(
     if copy_input:
         try:
             input_copy = input_serializer(function_input)
+            logger.debug(f"Created a copy of input.", input_copy)
         except Exception as e:
             client_executed_function_trace.execution_context["copy_input_error"] = str(e)
     
@@ -61,6 +63,7 @@ def general_preprocessing_tracer(
     find_parent = function_specific_config["find_parent"]
     if find_parent:
 
+        logger.debug("Finding parent for", client_executed_function_trace.name)
         # register the frame
         register_frame(_get_frame_id(function_call_frame), client_executed_function_trace)
 
@@ -74,6 +77,10 @@ def general_preprocessing_tracer(
             parent_trace_instance = is_frame_registered(_get_frame_id(parent_frame))
             if parent_trace_instance:
                 client_executed_function_trace.parent_id = parent_trace_instance.id
+                logger.debug((
+                    f"Found parent ({parent_trace_instance.name}) for "
+                    f"{client_executed_function_trace.name}."
+                ))
                 break
 
             parent_frame = parent_frame.f_back
@@ -99,12 +106,14 @@ def general_postprocessing_tracer(
 
     output_serializer = function_specific_config["output_serializer"]
 
+    logger.debug("Post processing started for ", client_executed_function_trace.name)
 
     # Copy output
     output_copy = None
     if copy_output:
         try:
             output_copy = output_serializer(function_output)
+            logger.debug("Created output copy", output_copy)
         except Exception as e:
             client_executed_function_trace.execution_context["copy_output_error"] = str(e)
     

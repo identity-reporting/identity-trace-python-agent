@@ -1,12 +1,17 @@
 setup.py
 identity_trace/__init__.py
+identity_trace/__main__.py
+identity_trace/config.py
 identity_trace/constants.py
 identity_trace/decorator.py
+identity_trace/logger.py
+identity_trace/matcher.py
 identity_trace/orchestration.py
 identity_trace/registry.py
 identity_trace/runner.py
 identity_trace/test_runner.py
 identity_trace/tracer.py
+identity_trace/utils.py
 identity_trace/wrappers.py
 identity_trace_python_agent.egg-info/PKG-INFO
 identity_trace_python_agent.egg-info/SOURCES.txt
@@ -15,6 +20,7 @@ identity_trace_python_agent.egg-info/requires.txt
 identity_trace_python_agent.egg-info/top_level.txt
 tests/__init__.py
 tests/test_decorator.py
+tests/test_matcher.py
 tests/test_runner.py
 tests/test_test_runner.py
 tests/test_tracer.py
