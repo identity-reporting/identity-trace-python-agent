@@ -440,7 +440,9 @@ def get_mocks_for_function(function_config, module_name, function_name, call_cou
         mocks_for_function = mocks.get(f"{module_name}:{function_name}", None)
 
         if mocks_for_function and isinstance(mocks_for_function, dict):
-            mock_value = mocks_for_function.get(str(call_count), None)
+            # Acount for integer or string keys
+            mock_value = mocks_for_function.get(
+                str(call_count), None) or mocks_for_function.get(call_count, None)
 
             if mock_value and isinstance(mock_value, dict):
                 return mock_value
