@@ -37,7 +37,11 @@ class TestResult:
 
 
 class FunctionTestResult:
-    def __init__(self, _type, assertions, children, executedSuccessfully, executionContext, id, failureReasons, name, ignored, successful, thrownError, passedInput):
+    def __init__(
+            self, _type, assertions, children, executedSuccessfully,
+            executionContext, id, failureReasons, name, ignored, successful,
+            thrownError, passedInput, isMocked = False, mockedOutput = None
+        ):
         self._type = _type
         self.assertions = assertions
         self.children = children
@@ -50,6 +54,8 @@ class FunctionTestResult:
         self.successful = successful
         self.thrownError = thrownError
         self.passedInput = passedInput
+        self.isMocked = isMocked
+        self.mockedOutput = mockedOutput
     
     def serialize(self):
 
@@ -65,7 +71,9 @@ class FunctionTestResult:
             ignored = self.ignored,
             successful = self.successful,
             thrownError = self.thrownError,
-            passedInput = self.passedInput
+            passedInput = self.passedInput,
+            isMocked = self.isMocked,
+            mockedOutput = self.mockedOutput
         )
 
 def matchExecutionWithTestConfig(testRun: TestRunForTestSuite) -> TestResult:
@@ -113,10 +121,30 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
             name=config['functionMeta']['name'],
             ignored=False,
             successful=False,
-            thrownError="",
-            passedInput=None
+            thrownError=executedFunction.get("error", None),
+            passedInput=None,
         )
     
+    # if the function is mocked. return mock result
+    if config.get("isMocked", None):
+        return FunctionTestResult(
+            _type="FunctionTestResult",
+            assertions=[],
+            children=[],
+            executedSuccessfully=True,
+            executionContext={},
+            id=config['functionMeta']['id'],
+            failureReasons=None,
+            name=config['functionMeta']['name'],
+            ignored=False,
+            successful=True,
+            thrownError=executedFunction,
+            passedInput=None,
+            isMocked=True,
+            mockedOutput=executedFunction.get("output", None)
+        )
+
+
     assertionResults = []
     for assertion in config['assertions']:
         failureReasons = []
