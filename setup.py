@@ -1,8 +1,8 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
     name='identity-trace-python-agent',
-    version='1.0.8',
+    version='1.0.10',
     packages=["identity_trace"],
     description='Tracing agent for python.',
     author='Mamoon Ahmed',
