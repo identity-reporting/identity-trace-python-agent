@@ -40,7 +40,7 @@ class FunctionTestResult:
     def __init__(
             self, _type, assertions, children, executedSuccessfully,
             executionContext, id, failureReasons, name, ignored, successful,
-            thrownError, passedInput, isMocked = False, mockedOutput = None
+            thrownError, functionMeta, isMocked = False, mockedOutput = None
         ):
         self._type = _type
         self.assertions = assertions
@@ -53,7 +53,7 @@ class FunctionTestResult:
         self.ignored = ignored
         self.successful = successful
         self.thrownError = thrownError
-        self.passedInput = passedInput
+        self.functionMeta = functionMeta
         self.isMocked = isMocked
         self.mockedOutput = mockedOutput
     
@@ -71,7 +71,7 @@ class FunctionTestResult:
             ignored = self.ignored,
             successful = self.successful,
             thrownError = self.thrownError,
-            passedInput = self.passedInput,
+            functionMeta = self.functionMeta,
             isMocked = self.isMocked,
             mockedOutput = self.mockedOutput
         )
@@ -110,19 +110,25 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
     successful = True
     
     if not executedFunction:
+        child_results = []
+        if len(config.get("children", [])):
+            child_results = [
+                matchFunctionWithConfig(None, c) for c in config.get("children", [])
+            ]
+
         return FunctionTestResult(
             _type="FunctionTestResult",
             assertions=[],
-            children=[],
+            children=child_results,
             executedSuccessfully=False,
             executionContext={},
             id=config['functionMeta']['id'],
-            failureReasons=["Did not get called."],
+            failureReasons=["This function was not called and was expected to be called."],
             name=config['functionMeta']['name'],
             ignored=False,
             successful=False,
-            thrownError=executedFunction.get("error", None),
-            passedInput=None,
+            thrownError=None,
+            functionMeta=None,
         )
     
     # if the function is mocked. return mock result
@@ -138,8 +144,8 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
             name=config['functionMeta']['name'],
             ignored=False,
             successful=True,
-            thrownError=executedFunction,
-            passedInput=None,
+            thrownError=executedFunction.get("error", None),
+            functionMeta=executedFunction,
             isMocked=True,
             mockedOutput=executedFunction.get("output", None)
         )
@@ -165,7 +171,9 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
                 'message': assertion['expectedErrorMessage']['message'],
                 'operator': assertion['expectedErrorMessage']['operator'],
                 'receivedError': thrownError,
+                'functionOutput': executedFunction.get("output", None)
             }
+
         elif 'ioConfig' in assertion:
             def matchObject(label, operator, sourceObject, targetObject):
                 if operator == "equals" and not objectIsEqual(sourceObject, targetObject):
@@ -173,16 +181,21 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
                 elif operator == "contains" and not objectContains(sourceObject, targetObject):
                     failureReasons.append(f"{label} does not match the expectation.")
 
+            
             if assertion['ioConfig']['target'] == "input":
                 matchObject("Input", assertion['ioConfig']['operator'], assertion['ioConfig']['object'], executedFunction['input'])
             else:
-                matchObject("Output", assertion['ioConfig']['operator'], assertion['ioConfig']['object'], executedFunction['output'])
+                if executedFunction.get("executedSuccessfully"):
+                    matchObject("Output", assertion['ioConfig']['operator'], assertion['ioConfig']['object'], executedFunction['output'])
+                else:
+                    failureReasons.append("Function threw an error.")
 
             assertionResult['ioConfig'] = {
                 'target': assertion['ioConfig']['target'],
                 'object': assertion['ioConfig']['object'],
                 'operator': assertion['ioConfig']['operator'],
                 'receivedObject': executedFunction['output'] if assertion['ioConfig']['target'] == "output" else executedFunction['input'],
+                'thrownError': executedFunction.get("error")
             }
 
         assertionResult['name'] = assertion['name']
@@ -194,6 +207,7 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
 
     failureReasons = []
     childrenResults = []
+
     for i, f in enumerate(config['children']):
         child_function_at_index = None
         try:
@@ -219,7 +233,7 @@ def matchFunctionWithConfig(executedFunction: Optional[Dict[str, Any]], config: 
         executionContext=executedFunction['executionContext'],
         id=executedFunction['id'],
         assertions=assertionResults,
-        passedInput=executedFunction.get("input", None)
+        functionMeta=executedFunction
     )
 
 def isResultSuccessful(obj: FunctionTestResult) -> bool:
