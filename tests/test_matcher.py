@@ -260,7 +260,8 @@ class test_matchFunctionWithConfig(TestCase):
                     target="output",
                     operator="contains",
                     object="some_expected_input",
-                    receivedObject="some_output"
+                    receivedObject="some_output",
+                    thrownError=None
                 )
             )
         )
@@ -288,6 +289,7 @@ class test_matchFunctionWithConfig(TestCase):
                         target="output",
                         operator="equals",
                         object="some_expected_input",
+                        thrownError=None
                     )
                 )
             ]
@@ -304,7 +306,8 @@ class test_matchFunctionWithConfig(TestCase):
                     target="output",
                     operator="equals",
                     object="some_expected_input",
-                    receivedObject="some_output"
+                    receivedObject="some_output",
+                    thrownError=None
                 )
             )
         )
@@ -343,7 +346,8 @@ class test_matchFunctionWithConfig(TestCase):
                 expectedErrorMessage=dict(
                     operator="equals",
                     message="expected_error",
-                    receivedError="thrown_error"
+                    receivedError="thrown_error",
+                    functionOutput=None
                 )
             )
         )
@@ -359,12 +363,14 @@ class test_matchFunctionWithConfig(TestCase):
                 expectedErrorMessage=dict(
                     operator="equals",
                     message="expected_error",
-                    receivedError="expected_error"
+                    receivedError="expected_error",
+                    functionOutput=None
                 )
             )
         )
 
     def test_matches_error_message_contains(self):
+        self.maxDiff = None
 
         mock_executed_function = dict(
             id="some_func_id",
@@ -398,7 +404,8 @@ class test_matchFunctionWithConfig(TestCase):
                 expectedErrorMessage=dict(
                     operator="contains",
                     message="thrown_error",
-                    receivedError="some_thrown_error_error"
+                    receivedError="some_thrown_error_error",
+                    functionOutput=None
                 )
             )
         )
@@ -415,7 +422,8 @@ class test_matchFunctionWithConfig(TestCase):
                 expectedErrorMessage=dict(
                     operator="contains",
                     message="thrown_error",
-                    receivedError="some"
+                    receivedError="some",
+                    functionOutput=None
                 )
             )
         )
@@ -488,7 +496,7 @@ class test_matchFunctionWithConfig(TestCase):
         self.assertEqual(res.executionContext,
                          mock_executed_function["executionContext"])
         self.assertEqual(res.id, mock_executed_function["id"])
-        self.assertEqual(res.passedInput, mock_executed_function["input"])
+        self.assertEqual(res.functionMeta, mock_executed_function)
 
 
 class test_objectIsEqual(TestCase):
