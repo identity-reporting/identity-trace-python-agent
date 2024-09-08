@@ -1,5 +1,6 @@
 from uuid import uuid4
 import requests
+import sys
 
 from .logger import logger
 from .utils import read_json_file_in_identity_folder
@@ -73,6 +74,10 @@ def run_tests(
     logger.log(f"{failed_count} Failed, {passed_count} Passed")
     if not failed_count:
         logger.log("OK.")
+        sys.exit(0)
+    else:
+        # Fail the process in case of failed tests.
+        sys.exit(1)
 
 
 def run_test_from_test_suite_json(test_suite_json):
