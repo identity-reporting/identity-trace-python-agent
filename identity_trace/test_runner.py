@@ -1,9 +1,8 @@
 from uuid import uuid4
 import requests
-import sys
 
 from .logger import logger
-from .utils import read_json_file_in_identity_folder
+from .utils import read_json_file_in_identity_folder, read_json_file_from_project_root
 from .matcher import matchExecutionWithTestConfig, TestRunForTestSuite
 from .runner import run_function_from_run_file
 
@@ -16,9 +15,10 @@ def run_tests(
         report_url=None
 ):
 
-    run_file_path = f"TestCase"
+    user_settings = read_json_file_from_project_root("identity_config.json")
+    run_file_path = user_settings.get("tests_directory", "tests")
 
-    test_suite_index = read_json_file_in_identity_folder(
+    test_suite_index = read_json_file_from_project_root(
         f"{run_file_path}/index.json"
     )
 
@@ -41,7 +41,7 @@ def run_tests(
 
         if not skip_test_suite:
 
-            test_suite_json = read_json_file_in_identity_folder(
+            test_suite_json = read_json_file_from_project_root(
                 f"{run_file_path}/{test_suite_index_entry[0]}.json"
             )
 
@@ -74,10 +74,6 @@ def run_tests(
     logger.log(f"{failed_count} Failed, {passed_count} Passed")
     if not failed_count:
         logger.log("OK.")
-        sys.exit(0)
-    else:
-        # Fail the process in case of failed tests.
-        sys.exit(1)
 
 
 def run_test_from_test_suite_json(test_suite_json):
