@@ -93,7 +93,7 @@ def process_user_config(user_config):
             # wrap it
             logger.debug(f"decorating all functions in {module_name}.")
             for name, obj in inspect.getmembers(module):
-                if inspect.isfunction(obj) or inspect.isclass(obj):
+                if (inspect.isfunction(obj) or inspect.isclass(obj)) and obj.__module__ == module_name:
                     decorated_function = wrap_function(
                         obj, name=obj.__name__, description=None, config=None,
                         file_name=file_name, module_name=module_name, package_name=package_name
