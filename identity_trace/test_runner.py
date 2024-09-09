@@ -2,7 +2,7 @@ from uuid import uuid4
 import requests
 
 from .logger import logger
-from .utils import read_json_file_in_identity_folder, read_json_file_from_project_root
+from .utils import read_json_file_from_project_root
 from .matcher import matchExecutionWithTestConfig, TestRunForTestSuite
 from .runner import run_function_from_run_file
 
@@ -15,8 +15,7 @@ def run_tests(
         report_url=None
 ):
 
-    user_settings = read_json_file_from_project_root("identity_config.json")
-    run_file_path = user_settings.get("tests_directory", "tests")
+    run_file_path = get_tests_directory()
 
     test_suite_index = read_json_file_from_project_root(
         f"{run_file_path}/index.json"
@@ -158,3 +157,8 @@ def send_test_report_to_url(report_url, matcherResult):
             f"{e}"
         )
 
+
+
+def get_tests_directory():
+    user_settings = read_json_file_from_project_root("identity_config.json")
+    return user_settings.get("tests_directory", "tests")
