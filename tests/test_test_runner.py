@@ -13,24 +13,30 @@ def test_file_read_side_effect(file_name):
 
 class run_tests_tests(TestCase):
 
-    @patch("identity_trace.test_runner.read_json_file_in_identity_folder")
-    def test_reads_index_file(self, read_json_file_in_identity_folder_mock):
-        read_json_file_in_identity_folder_mock.return_value = []
+    @patch("identity_trace.test_runner.get_tests_directory")
+    @patch("identity_trace.test_runner.read_json_file_from_project_root")
+    def test_reads_index_file(self, read_json_file_from_project_root_mock, get_tests_directory_mock):
+        get_tests_directory_mock.return_value = "TestCase"
+        read_json_file_from_project_root_mock.return_value = []
 
         run_tests()
-
-        read_json_file_in_identity_folder_mock.assert_called_once_with(
+        
+        read_json_file_from_project_root_mock.assert_called_once_with(
             "TestCase/index.json")
 
+    @patch("identity_trace.test_runner.get_tests_directory")
     @patch("identity_trace.test_runner.run_test_from_test_suite_json")
-    @patch("identity_trace.test_runner.read_json_file_in_identity_folder")
+    @patch("identity_trace.test_runner.read_json_file_from_project_root")
     def test_filters_by_module_name(
-        self, read_json_file_in_identity_folder_mock, run_test_from_test_suite_json_mock
+        self, read_json_file_from_project_root_mock, run_test_from_test_suite_json_mock,
+        get_tests_directory_mock
     ):
         '''
             Check whether the filter by module name works
         '''
-        read_json_file_in_identity_folder_mock.return_value = [
+        get_tests_directory_mock.return_value = "TestCase"
+
+        read_json_file_from_project_root_mock.return_value = [
             ["some_id", "name", "module1", "filename"],
             ["some_id", "name", "module1", "filename"],
             ["some_id", "name", "module1", "filename"],
@@ -48,27 +54,30 @@ class run_tests_tests(TestCase):
             module_name="another"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_args_list[0][0][0],
+            read_json_file_from_project_root_mock.call_args_list[0][0][0],
             "TestCase/index.json"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_args_list[1][0][0],
+            read_json_file_from_project_root_mock.call_args_list[1][0][0],
             "TestCase/some_id4.json"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_count,
+            read_json_file_from_project_root_mock.call_count,
             2
         )
 
+    @patch("identity_trace.test_runner.get_tests_directory")
     @patch("identity_trace.test_runner.run_test_from_test_suite_json")
-    @patch("identity_trace.test_runner.read_json_file_in_identity_folder")
+    @patch("identity_trace.test_runner.read_json_file_from_project_root")
     def test_filters_by_file_name(
-        self, read_json_file_in_identity_folder_mock, run_test_from_test_suite_json_mock
+        self, read_json_file_from_project_root_mock, run_test_from_test_suite_json_mock,
+        get_tests_directory_mock
     ):
         '''
             Check whether the filter by file name works
         '''
-        read_json_file_in_identity_folder_mock.return_value = [
+        get_tests_directory_mock.return_value = "TestCase"
+        read_json_file_from_project_root_mock.return_value = [
             ["some_id", "name", "module1", "filename"],
             ["some_id", "name", "module1", "filename"],
             ["some_id3", "name", "module1", "some_di"],
@@ -86,31 +95,34 @@ class run_tests_tests(TestCase):
             file_name="some"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_args_list[0][0][0],
+            read_json_file_from_project_root_mock.call_args_list[0][0][0],
             "TestCase/index.json"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_args_list[1][0][0],
+            read_json_file_from_project_root_mock.call_args_list[1][0][0],
             "TestCase/some_id3.json"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_args_list[2][0][0],
+            read_json_file_from_project_root_mock.call_args_list[2][0][0],
             "TestCase/some_id4.json"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_count,
+            read_json_file_from_project_root_mock.call_count,
             3
         )
 
+    @patch("identity_trace.test_runner.get_tests_directory")
     @patch("identity_trace.test_runner.run_test_from_test_suite_json")
-    @patch("identity_trace.test_runner.read_json_file_in_identity_folder")
+    @patch("identity_trace.test_runner.read_json_file_from_project_root")
     def test_filters_by_test_suite_name(
-        self, read_json_file_in_identity_folder_mock, run_test_from_test_suite_json_mock
+        self, read_json_file_from_project_root_mock, run_test_from_test_suite_json_mock,
+        get_tests_directory_mock
     ):
         '''
             Check whether the filter by file name works
         '''
-        read_json_file_in_identity_folder_mock.return_value = [
+        get_tests_directory_mock.return_value = "TestCase"
+        read_json_file_from_project_root_mock.return_value = [
             ["some_id", "name1", "module1", "filename"],
             ["some_id", "name1", "module1", "filename"],
             ["some_id3", "another_name1", "module1", "some_di"],
@@ -128,19 +140,19 @@ class run_tests_tests(TestCase):
             test_suite_name="another"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_args_list[0][0][0],
+            read_json_file_from_project_root_mock.call_args_list[0][0][0],
             "TestCase/index.json"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_args_list[1][0][0],
+            read_json_file_from_project_root_mock.call_args_list[1][0][0],
             "TestCase/some_id3.json"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_args_list[2][0][0],
+            read_json_file_from_project_root_mock.call_args_list[2][0][0],
             "TestCase/some_id4.json"
         )
         self.assertEqual(
-            read_json_file_in_identity_folder_mock.call_count,
+            read_json_file_from_project_root_mock.call_count,
             3
         )
 
