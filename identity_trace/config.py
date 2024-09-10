@@ -50,7 +50,7 @@ def read_config_file(config_file_name = None):
     user_config = None
     try:
         user_config = json.loads(config_file_string)
-    except e:
+    except Exception as e:
         raise Exception(f"Could not parse JSON from config file. Error: {str(e)}. {str(config_file_string)}")
 
     validate_user_config(user_config)
