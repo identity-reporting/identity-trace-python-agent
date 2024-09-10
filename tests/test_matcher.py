@@ -105,19 +105,22 @@ class test_matchExecutionWithTestConfig(TestCase):
         self.assertEqual(res.successful, False)
         self.assertEqual(len(res.result), 2)
 
-        self.assertDictContainsSubset(dict(
-            expectation="test_1",
-            successful=test_res_1.successful,
-            error=None
-        ), res.result[0])
+        self.assertEqual(
+            set(dict(
+                expectation="test_1",
+                successful=test_res_1.successful,
+                error=None
+            ).items()).issubset(set(res.result[0].items())),
+            True
+        )
 
         self.assertEqual(res.result[0]["result"].__dict__, test_res_1.__dict__)
 
-        self.assertDictContainsSubset(dict(
+        self.assertEqual(set(dict(
             expectation="test_2",
             successful=test_res_2.successful,
             error=None
-        ), res.result[1])
+        ).items()).issubset(set(res.result[1].items())), True)
 
         self.assertEqual(res.result[1]["result"].__dict__, test_res_2.__dict__)
 
