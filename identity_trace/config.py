@@ -13,6 +13,8 @@ script_path = sys.argv[0]
 # Get the directory path where the script was executed from
 script_directory = os.path.dirname(script_path)
 
+__wrapped_modules__ = dict()
+
 # Throw Error
 def initialize_with_config_file(file_name = None):
     
@@ -74,26 +76,53 @@ def process_user_config(user_config):
     
 
     for module_name, value in user_config["modules"].items():
-
-        try:
-            logger.debug(f"Importing module {module_name} to decorate functions.")
-            module = importlib.import_module(module_name)
-            file_name = getattr(module, "__file__")
-            package_name = getattr(module, "__package__")
-        except Exception as e:
-            raise Exception((
-                f"Invalid module ({module_name}) specified in the config file. "
-                f"Could not import module {module_name}."
-                f"Error: {str(e)}"
-            ))
+        wrap_module(user_config["modules"], module_name, value)
         
-        if value == True and not isinstance(value, list):
-            # import module name
-            # find every callable
-            # wrap it
-            logger.debug(f"decorating all functions in {module_name}.")
-            for name, obj in inspect.getmembers(module):
-                if (inspect.isfunction(obj) or inspect.isclass(obj)) and obj.__module__ == module_name:
+                
+
+def wrap_module(user_module_map, module_name, value):
+
+    try:
+
+        module = importlib.import_module(module_name)
+        if __wrapped_modules__.get(module_name, None):
+            return module
+        
+        logger.debug(f"Importing module {module_name} to decorate functions.")
+        
+
+        __wrapped_modules__[module_name] = True
+
+        file_name = getattr(module, "__file__")
+        package_name = getattr(module, "__package__")
+    except Exception as e:
+        raise Exception((
+            f"Invalid module ({module_name}) specified in the config file. "
+            f"Could not import module {module_name}."
+            f"Error: {str(e)}"
+        ))
+    
+    if value == True and not isinstance(value, list):
+        # import module name
+        # find every callable
+        # wrap it
+        logger.debug(f"decorating all functions in {module_name}.")
+        for name, obj in inspect.getmembers(module):
+
+            if (inspect.isfunction(obj) or inspect.isclass(obj)):
+                if obj.__module__ != module_name:
+
+                    # User specified this module to be wrapped
+                    if user_module_map.get(obj.__module__, None):
+
+                        wrapped_imported_module = wrap_module(
+                            user_module_map, obj.__module__, user_module_map[obj.__module__]
+                        )
+                        function_name = obj.__name__
+                        # Replace the imported function with wrapped function from the module
+                        setattr(module, name, getattr(wrapped_imported_module, function_name))
+                else:
+
                     decorated_function = wrap_function(
                         obj, name=obj.__name__, description=None, config=None,
                         file_name=file_name, module_name=module_name, package_name=package_name
@@ -101,38 +130,37 @@ def process_user_config(user_config):
                     setattr(module, name, decorated_function)
 
 
-        else:
-            # import module name
-            # iterate over every callable present in the value
-            # wrap it
-            for name in value:
-                function_name = None
-                function_description = None
-                function_config = None
+    else:
+        # import module name
+        # iterate over every callable present in the value
+        # wrap it
+        for name in value:
+            function_name = None
+            function_description = None
+            function_config = None
 
-                if isinstance(name, str):
-                    function_name = name
-                elif isinstance(name, dict):
-                    function_name = name["name"]
-                    function_description = name["description"]
-                    function_config = name["config"]
-
-
-                func = getattr(module, function_name, None)
-                if not func or not callable(func):
-                    raise Exception((
-                        f"Invalid callable ({name}) specified inside module ({module_name}) in config file. "
-                        f"{name} should be class or function."
-                    ))
-
-                decorated_function = wrap_function(
-                    func, name=function_name, description=function_description, config=function_config,
-                    file_name=file_name, module_name=module_name, package_name=package_name
-                )
-                setattr(module, function_name, decorated_function)
-                
+            if isinstance(name, str):
+                function_name = name
+            elif isinstance(name, dict):
+                function_name = name["name"]
+                function_description = name["description"]
+                function_config = name["config"]
 
 
+            func = getattr(module, function_name, None)
+            if not func or not callable(func):
+                raise Exception((
+                    f"Invalid callable ({name}) specified inside module ({module_name}) in config file. "
+                    f"{name} should be class or function."
+                ))
+
+            decorated_function = wrap_function(
+                func, name=function_name, description=function_description, config=function_config,
+                file_name=file_name, module_name=module_name, package_name=package_name
+            )
+            setattr(module, function_name, decorated_function)
+
+    return module
 
 def wrap_function(client_function, name, description, config, module_name, file_name, package_name):
     logger.debug(f"Wrapping {name} in module {module_name}")
